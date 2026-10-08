@@ -14,7 +14,7 @@
 # Étape 1 — build Vite (identique à `npm run build` en local, déjà vérifié
 # propre cette session : `tsc --noEmit && vite build`).
 # --------------------------------------------------------------------------- #
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /src
 
