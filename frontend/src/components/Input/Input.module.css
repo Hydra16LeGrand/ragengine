@@ -1,0 +1,34 @@
+.input {
+  composes: control from '../field-control.module.css';
+}
+
+.mono {
+  composes: mono from '../field-control.module.css';
+}
+
+/* --- Champ avec affixe ---------------------------------------------------- */
+.group {
+  display: flex;
+  align-items: stretch;
+  inline-size: 100%;
+}
+
+.prefix {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--rag-space-3);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-inline-end: none;
+  border-start-start-radius: var(--rag-radius-sm);
+  border-end-start-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-subtle);
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-xs);
+  white-space: nowrap;
+}
+
+.group .input {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+}

@@ -1,0 +1,33 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-6);
+}
+
+.code {
+  display: block;
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border-radius: var(--rag-radius-md);
+  background: var(--color-surface-sunken);
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-sm);
+  color: var(--color-text);
+  overflow-x: auto;
+}
+
+.note {
+  margin: var(--rag-space-3) 0 0;
+  font-size: var(--rag-text-sm);
+  color: var(--color-text-muted);
+}
+
+.steps,
+.list {
+  margin: 0;
+  padding-inline-start: var(--rag-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  font-size: var(--rag-text-sm);
+  color: var(--color-text);
+}

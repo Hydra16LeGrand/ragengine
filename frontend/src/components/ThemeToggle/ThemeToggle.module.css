@@ -1,0 +1,63 @@
+.group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-surface-sunken);
+}
+
+.option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.875rem;
+  block-size: 1.875rem;
+  border-radius: var(--rag-radius-full);
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.option:hover {
+  color: var(--color-text);
+}
+
+.optionActive {
+  background-color: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.optionActive:hover {
+  color: var(--color-accent);
+}
+
+/* L'input reste focusable au clavier (navigation par flèches native) mais
+   invisible : le style est porté par le label parent. */
+.input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.option:has(.input:focus-visible) {
+  outline: var(--rag-border-thick) solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+  stroke-width: 1.5;
+  pointer-events: none;
+}

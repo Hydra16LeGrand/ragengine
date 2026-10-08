@@ -1,0 +1,73 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+.error {
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  margin-block-start: var(--rag-space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  flex-wrap: wrap;
+}
+
+.rowIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}
+
+.name {
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+}
+
+.meta {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex: none;
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}
+
+.formField {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}

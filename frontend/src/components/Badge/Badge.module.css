@@ -1,0 +1,77 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-1);
+  padding: 0.15rem var(--rag-space-2);
+  border: var(--rag-border-thin) solid transparent;
+  border-radius: var(--rag-radius-xs);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-medium);
+  letter-spacing: var(--rag-tracking-wide);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.icon svg {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  stroke-width: 1.75;
+}
+
+/* --- Tonalités : fond teinté ---------------------------------------------- */
+.soft.neutral {
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.soft.accent {
+  background-color: var(--color-accent-surface);
+  color: var(--color-accent);
+}
+
+.soft.success {
+  background-color: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.soft.warning {
+  background-color: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.soft.danger {
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+/* --- Tonalités : contour seul --------------------------------------------- */
+.outline.neutral {
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.outline.accent {
+  border-color: var(--color-accent-border);
+  color: var(--color-accent);
+}
+
+.outline.success {
+  border-color: color-mix(in srgb, var(--color-success) 45%, transparent);
+  color: var(--color-success);
+}
+
+.outline.warning {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+  color: var(--color-warning);
+}
+
+.outline.danger {
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+  color: var(--color-danger);
+}

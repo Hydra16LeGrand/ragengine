@@ -1,0 +1,147 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  margin-block-start: var(--rag-space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.rowMain {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-4);
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.rowMain > *:last-child {
+  flex: none;
+  inline-size: 10rem;
+}
+
+/* Un nom de personne, plus un identifiant technique : ni mono, ni minuscule. */
+.memberName {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+  font-size: var(--rag-text-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.you {
+  flex: none;
+  padding: 0 var(--rag-space-2);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lookup {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rag-space-3);
+  margin-block-start: var(--rag-space-5);
+}
+
+.lookupField {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 40rem) {
+  .lookup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Sous 30rem, le sélecteur de rôle à largeur fixe (`.rowMain > *:last-child`
+   ci-dessus) et le bouton de retrait — ni l'un ni l'autre ne rétrécit —
+   écrasaient `.memberName` à quelques pixels de large sur un téléphone, au
+   point de couper le nom lettre par lettre (`overflow-wrap: anywhere` n'avait
+   alors plus aucun mot entier à préserver). Même défaut, même remède que
+   `DocumentsPanel.module.css` (`.itemRow`, constaté le 2026-09-07) : la
+   rangée et son bloc interne s'empilent, chacun retrouve sa pleine largeur. */
+@media (max-width: 30rem) {
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rowMain {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rowMain > *:last-child {
+    inline-size: 100%;
+  }
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+  margin-block-start: var(--rag-space-4);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-md);
+}
+
+.resultHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}
+
+.resultActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}
+
+.resultActions > *:first-child {
+  inline-size: 12rem;
+  flex: none;
+}
+
+/* Le sélecteur de rôle du flux « accorder l'accès » (`.resultActions`, plus
+   haut) avait le même défaut que celui de l'annuaire, corrigé pour `.row` en
+   accce2e : largeur fixe qui ne cède jamais la place. `flex-wrap` laissait le
+   bouton passer à la ligne, mais le sélecteur restait à 12rem — sous 30rem,
+   il prend toute la largeur disponible comme le reste de ce panneau (passe
+   d'espacements mobile, 2026-09-17). */
+@media (max-width: 30rem) {
+  .resultActions > *:first-child {
+    inline-size: 100%;
+  }
+}
+
+.resultEmpty {
+  font-size: var(--rag-text-sm);
+  color: var(--color-text-muted);
+}
+
+.resultError {
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}

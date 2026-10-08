@@ -1,0 +1,373 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.container {
+  inline-size: 100%;
+  max-inline-size: var(--rag-container-max);
+  margin-inline: auto;
+  padding-inline: var(--rag-space-6);
+}
+
+/* Sous 30rem, cette gouttière de page s'additionnait à celle des niveaux
+   internes (`Card`, `.panel` du Playground) sans qu'aucun des deux ne cède :
+   sur un écran de 390px, page (24px) + carte (24px) ne laissaient qu'environ
+   294px utiles de chaque côté — moins encore quand une section interne
+   (dropzone de versement) rajoutait sa propre marge. La page redescend ici à
+   `--rag-space-4` (16px, le plancher maison) ; c'est aux niveaux internes de
+   cesser d'en rajouter en dessous de cette largeur (`Card.module.css`,
+   `Dropzone.module.css`, `Playground.module.css`), pas à la page de porter
+   seule tout le rembourrage. */
+@media (width <= 30rem) {
+  .container {
+    padding-inline: var(--rag-space-4);
+  }
+}
+
+/* --- Lien d'évitement ----------------------------------------------------- */
+.skipLink {
+  position: absolute;
+  inset-block-start: var(--rag-space-2);
+  inset-inline-start: var(--rag-space-2);
+  z-index: var(--rag-z-toast);
+  padding: var(--rag-space-2) var(--rag-space-4);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: var(--rag-text-sm);
+  transform: translateY(-200%);
+  transition: transform var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.skipLink:focus-visible {
+  transform: translateY(0);
+}
+
+/* --- En-tête -------------------------------------------------------------- */
+.header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--rag-z-sticky);
+  border-block-end: var(--rag-border-thin) solid var(--color-border-subtle);
+  background-color: color-mix(in srgb, var(--color-canvas) 82%, transparent);
+  backdrop-filter: saturate(140%) blur(12px);
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  block-size: var(--rag-header-height);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.brandMark {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  color: var(--color-accent);
+  stroke-width: 1.75;
+  flex: none;
+}
+
+.brandName {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-md);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-tight);
+}
+
+/* --- Navigation principale ------------------------------------------------ */
+/* Mobile-first : en dessous de 48rem, jusqu'à 5 liens + logo + actions ne
+   tiennent pas sur une seule rangée — la barre se replie derrière le bouton
+   bascule (`.menuToggle`), le tiroir (`.mobileMenu`) porte les mêmes liens. */
+.nav {
+  display: none;
+  align-items: center;
+  gap: var(--rag-space-1);
+  margin-inline-start: var(--rag-space-4);
+  flex: 1 1 auto;
+}
+
+@media (min-width: 48rem) {
+  .nav {
+    display: flex;
+  }
+}
+
+.navLink {
+  position: relative;
+  padding: var(--rag-space-2) var(--rag-space-3);
+  border-radius: var(--rag-radius-sm);
+  color: var(--color-text-muted);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  letter-spacing: var(--rag-tracking-tight);
+  text-decoration: none;
+  transition:
+    color var(--rag-duration-fast) var(--rag-ease-standard),
+    background-color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.navLink:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.navLinkActive {
+  color: var(--color-text);
+}
+
+/* Le repère d'onglet actif prolonge le filet du bandeau — pas de pilule. */
+.navLinkActive::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--rag-space-3);
+  inset-block-end: calc(-1 * var(--rag-space-4) - 1px);
+  block-size: 2px;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-accent);
+}
+
+/* --- Actions d'en-tête ---------------------------------------------------- */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-4);
+  flex: none;
+}
+
+/* Bouton bascule du tiroir mobile — cache/montre, jamais les deux. */
+.menuToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  padding: 0;
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-sm);
+  background-color: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background-color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.menuToggle:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.menuToggle svg {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+}
+
+@media (min-width: 48rem) {
+  .menuToggle {
+    display: none;
+  }
+}
+
+/* --- Tiroir mobile ---------------------------------------------------------- */
+/* Rangée propre, sous l'en-tête plutôt que superposée : un lien y reste un
+   lien de page, pas une fenêtre flottante à gérer en plus du contenu. */
+.mobileMenu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-3) var(--rag-space-6) var(--rag-space-4);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+  background-color: var(--color-canvas);
+  animation: mobile-menu-in var(--rag-duration-base) var(--rag-ease-out);
+}
+
+@media (min-width: 48rem) {
+  .mobileMenu {
+    display: none;
+  }
+}
+
+.mobileMenuNav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+}
+
+/* Identité/connexion, dupliquée depuis l'en-tête compact (`.headerAccount` la
+   masque à cette largeur — jamais les deux ensemble). Le filet horizontal
+   remplace le filet vertical de `.account` (pensé pour une rangée d'en-tête,
+   pas pour un tiroir empilé) ; `.account`/`.identity` gardent leur mise en
+   page interne telle quelle, seul le contexte autour change. */
+.mobileMenuAccount {
+  padding-block-start: var(--rag-space-3);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.mobileMenuAccount .account {
+  padding-inline-start: 0;
+  border-inline-start: none;
+}
+
+@keyframes mobile-menu-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--rag-space-2));
+  }
+}
+
+.mobileNavLink {
+  padding: var(--rag-space-3) var(--rag-space-3);
+  border-radius: var(--rag-radius-sm);
+  color: var(--color-text-muted);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  letter-spacing: var(--rag-tracking-tight);
+  text-decoration: none;
+  /* Cible tactile confortable (>= 44px recommandés) — une rangée de menu
+     mobile n'a pas à lésiner sur la hauteur comme un lien de barre desktop. */
+  min-block-size: 2.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.mobileNavLink:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.mobileNavLinkActive {
+  background-color: var(--color-accent-surface);
+  color: var(--color-accent);
+}
+
+.mobileLoginLink {
+  composes: mobileNavLink;
+}
+
+.loginLink {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  text-decoration: none;
+  padding: var(--rag-space-2) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-sm);
+  transition:
+    border-color var(--rag-duration-fast) var(--rag-ease-standard),
+    background-color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.loginLink:hover {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+/* Sous 48rem, l'identité/connexion vit dans le tiroir mobile
+   (`.mobileMenuAccount`) — jamais les deux affichés ensemble. */
+.headerAccount {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .headerAccount {
+    display: contents;
+  }
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  padding-inline-start: var(--rag-space-4);
+  border-inline-start: var(--rag-border-thin) solid var(--color-border);
+}
+
+.identity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+}
+
+/* Monogramme : une initiale suffit à identifier, aucune image à charger. */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-accent-surface);
+  border: var(--rag-border-thin) solid var(--color-accent-border);
+  color: var(--color-accent);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.identityText {
+  display: none;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.identityName {
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 12rem;
+}
+
+.identityRole {
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+@media (min-width: 48rem) {
+  .identityText {
+    display: flex;
+  }
+}
+
+/* --- Contenu & pied ------------------------------------------------------- */
+.main {
+  flex: 1 1 auto;
+  padding-block: var(--rag-space-16) var(--rag-space-20);
+}
+
+.footer {
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+  padding-block: var(--rag-space-5);
+  color: var(--color-text-subtle);
+  font-size: var(--rag-text-xs);
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-2);
+}

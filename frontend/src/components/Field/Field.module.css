@@ -1,0 +1,54 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+}
+
+.label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  letter-spacing: var(--rag-tracking-tight);
+  color: var(--color-text);
+}
+
+.optional {
+  font-family: var(--rag-font-sans);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-regular);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+/* Placée sous le contrôle : elle ne participe donc pas à l'alignement
+   vertical des colonnes voisines (cf. commentaire dans `Field.tsx`). */
+.hint {
+  margin-block-start: calc(-1 * var(--rag-space-1));
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-snug);
+  max-inline-size: 62ch;
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rag-space-2);
+  color: var(--color-danger);
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-snug);
+}
+
+.errorIcon {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  flex: none;
+  margin-block-start: 0.1em;
+  stroke-width: 1.5;
+}

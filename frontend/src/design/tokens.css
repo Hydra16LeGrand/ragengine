@@ -1,0 +1,264 @@
+/* =============================================================================
+   RAGEngine — Jetons de design (design tokens)
+   =============================================================================
+   Deux niveaux :
+   1. PRIMITIVES (`--rag-*`) : la matière brute (échelles de couleur, typo,
+      espacement, rayons). Elles ne changent JAMAIS d'un thème à l'autre.
+   2. SÉMANTIQUE (`--color-*`, `--shadow-*`, …) : l'usage. Seule cette couche
+      est remappée par `[data-theme='dark']`.
+
+   Règle : les composants ne consomment QUE la couche sémantique (ou les
+   échelles neutres de typo/espacement). Jamais une primitive de couleur en dur.
+
+   Le thème est piloté par l'attribut `data-theme` sur <html>, posé avant le
+   premier paint par le script inline de `index.html` (cf. `design/theme.tsx`).
+   La SPA requiert JavaScript : il n'y a donc pas de repli `prefers-color-scheme`
+   en CSS, la résolution du mode « système » est faite en TS.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------------
+     PRIMITIVES — Couleur
+     Accent « grenat » : marque (face client), distincte du rouge
+     d'alerte (`--rag-danger-*`, hue ~9°) par la teinte — grenat est à ~345°,
+     une rose-magenta profonde, jamais confondue avec le brun-brique de
+     l'alerte même côte à côte (vérifié : contraste ≥6.6:1 sur blanc/quasi-noir
+     aux deux paliers utilisés en bouton plein, 600 clair et 400 sombre).
+     Remplace l'ancien accent « pétrole » (bleu-vert industriel) : retiré,
+     plus aucune référence dans le code une fois la couche sémantique
+     repointée — RAGEngine, le moteur, ne consomme pas cette feuille de style.
+     --------------------------------------------------------------------- */
+  --rag-garnet-50: #fbeef1;
+  --rag-garnet-100: #f9dce3;
+  --rag-garnet-200: #f5c2ce;
+  --rag-garnet-300: #f39bb1;
+  --rag-garnet-400: #f0708f;
+  --rag-garnet-500: #e13c65;
+  --rag-garnet-600: #b8264a;
+  --rag-garnet-700: #9a1d3d;
+  --rag-garnet-800: #72182e;
+  --rag-garnet-900: #4e1221;
+
+  /* Neutres légèrement froids (H≈220°, « ardoise ») : contrepoint frais de
+     l'accent grenat, chaud. Inverse le principe tenu par l'ancienne échelle
+     « papier » (chaude, contrepoint d'un accent pétrole froid) — même
+     principe de contraste de température, rôles échangés parce que l'accent
+     l'est. Recalculée par rotation de teinte (H 36-48°→220°) en préservant
+     saturation et clarté (L*) de chaque palier à l'identique : les niveaux de
+     contraste ne bougent pas, seule la température change. Utilisés en clair
+     comme en sombre. */
+  --rag-neutral-0: #ffffff;
+  --rag-neutral-25: #f9fafb;
+  --rag-neutral-50: #f2f3f6;
+  --rag-neutral-100: #e7e9ed;
+  --rag-neutral-150: #dadde3;
+  --rag-neutral-200: #caced6;
+  --rag-neutral-300: #abb0ba;
+  --rag-neutral-400: #8a8e97;
+  --rag-neutral-500: #6a6e75;
+  --rag-neutral-600: #51545a;
+  --rag-neutral-700: #3c3e43;
+  --rag-neutral-800: #292b2e;
+  --rag-neutral-850: #1f2124;
+  --rag-neutral-900: #17181a;
+  --rag-neutral-950: #111112;
+  --rag-neutral-1000: #09090a;
+
+  /* Statuts. `warning` rééquilibré pour l'accent grenat (2026-09-05) : l'ancien
+     kaki (#96600a) s'accordait au pétrole froid, mais devient discordant à
+     côté d'un rouge-magenta chaud et vif. Même famille ambre/or (H~45°), mais
+     saturation maximale plutôt que désaturée — plus net, moins terreux — et
+     lightness recalée pour garder le contraste texte/surface (5,2:1 vs 4,7:1
+     avant, sur `--color-warning`/`--color-warning-surface` clairs, WCAG AA).
+     Écart de teinte volontaire avec danger (~9°) et succès (~140°) : les
+     trois signaux restent nettement distincts au premier coup d'œil. */
+  --rag-success-500: #2f7d4f;
+  --rag-success-300: #67c58c;
+  --rag-success-50: #e9f4ed;
+  --rag-warning-500: #856300;
+  --rag-warning-300: #f0c74c;
+  --rag-warning-50: #fdf8e7;
+  --rag-danger-500: #b03a2c;
+  --rag-danger-300: #ee8073;
+  --rag-danger-50: #f9ebe9;
+
+  /* ---------------------------------------------------------------------
+     PRIMITIVES — Typographie
+     Sans-serif géométrique, 100 % locale : aucune requête vers un CDN
+     (déploiement souverain / hors-ligne, cf. CONTRIBUTING.md §1). On privilégie les
+     géométriques réellement installées (Avenir Next, Futura, Jost, Poppins,
+     URW Gothic) puis on retombe sur la sans-serif système.
+     Phase 6 pourra auto-héberger une variable font dans `public/fonts/`.
+     --------------------------------------------------------------------- */
+  --rag-font-display:
+    'Avenir Next', Avenir, Futura, Jost, Poppins, 'Century Gothic', 'URW Gothic',
+    'Segoe UI Variable Display', system-ui, -apple-system, sans-serif;
+  --rag-font-sans:
+    system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', Roboto, 'Helvetica Neue',
+    'Noto Sans', Cantarell, Ubuntu, Arial, sans-serif;
+  --rag-font-mono:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Mono', Consolas,
+    'Liberation Mono', monospace;
+
+  /* Échelle de tailles — tierce mineure (~1.25). */
+  --rag-text-2xs: 0.6875rem; /* 11px */
+  --rag-text-xs: 0.75rem; /* 12px */
+  --rag-text-sm: 0.875rem; /* 14px */
+  --rag-text-base: 1rem; /* 16px */
+  --rag-text-md: 1.125rem; /* 18px */
+  --rag-text-lg: 1.375rem; /* 22px */
+  --rag-text-xl: 1.75rem; /* 28px */
+  --rag-text-2xl: 2.25rem; /* 36px */
+  --rag-text-3xl: 3rem; /* 48px */
+
+  --rag-leading-tight: 1.15;
+  --rag-leading-snug: 1.3;
+  --rag-leading-normal: 1.55;
+  --rag-leading-relaxed: 1.7;
+
+  --rag-weight-regular: 400;
+  --rag-weight-medium: 500;
+  --rag-weight-semibold: 600;
+  --rag-weight-bold: 700;
+
+  --rag-tracking-tighter: -0.022em;
+  --rag-tracking-tight: -0.011em;
+  --rag-tracking-normal: 0;
+  --rag-tracking-wide: 0.02em;
+  --rag-tracking-caps: 0.09em;
+
+  /* ---------------------------------------------------------------------
+     PRIMITIVES — Espacement (base 4px), rayons, traits, couches, mouvement
+     --------------------------------------------------------------------- */
+  --rag-space-0: 0;
+  --rag-space-1: 0.25rem;
+  --rag-space-2: 0.5rem;
+  --rag-space-3: 0.75rem;
+  --rag-space-4: 1rem;
+  --rag-space-5: 1.25rem;
+  --rag-space-6: 1.5rem;
+  --rag-space-8: 2rem;
+  --rag-space-10: 2.5rem;
+  --rag-space-12: 3rem;
+  --rag-space-16: 4rem;
+  --rag-space-20: 5rem;
+  --rag-space-24: 6rem;
+
+  --rag-radius-xs: 4px;
+  --rag-radius-sm: 6px;
+  --rag-radius-md: 10px;
+  --rag-radius-lg: 14px;
+  --rag-radius-xl: 20px;
+  --rag-radius-full: 999px;
+
+  --rag-border-thin: 1px;
+  --rag-border-thick: 2px;
+
+  --rag-z-base: 0;
+  --rag-z-sticky: 100;
+  --rag-z-overlay: 200;
+  --rag-z-modal: 300;
+  --rag-z-toast: 400;
+
+  --rag-duration-instant: 80ms;
+  --rag-duration-fast: 130ms;
+  --rag-duration-base: 200ms;
+  --rag-duration-slow: 320ms;
+  --rag-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --rag-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --rag-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Gabarit */
+  --rag-container-max: 72rem;
+  --rag-container-narrow: 48rem;
+  --rag-header-height: 4rem;
+}
+
+/* =============================================================================
+   COUCHE SÉMANTIQUE — thème clair (défaut)
+   ========================================================================== */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --color-canvas: var(--rag-neutral-50);
+  --color-canvas-veil: rgb(23 24 26 / 45%);
+  --color-surface: var(--rag-neutral-0);
+  --color-surface-raised: var(--rag-neutral-0);
+  --color-surface-sunken: var(--rag-neutral-100);
+  --color-surface-hover: var(--rag-neutral-50);
+
+  --color-border: var(--rag-neutral-200);
+  --color-border-subtle: var(--rag-neutral-150);
+  --color-border-strong: var(--rag-neutral-300);
+
+  --color-text: var(--rag-neutral-900);
+  --color-text-muted: var(--rag-neutral-600);
+  --color-text-subtle: var(--rag-neutral-500);
+  --color-text-inverse: var(--rag-neutral-25);
+
+  --color-accent: var(--rag-garnet-600);
+  --color-accent-hover: var(--rag-garnet-700);
+  --color-accent-solid: var(--rag-garnet-600);
+  --color-accent-solid-hover: var(--rag-garnet-700);
+  --color-accent-contrast: var(--rag-neutral-0);
+  --color-accent-surface: var(--rag-garnet-50);
+  --color-accent-border: var(--rag-garnet-200);
+
+  --color-success: var(--rag-success-500);
+  --color-success-surface: var(--rag-success-50);
+  --color-warning: var(--rag-warning-500);
+  --color-warning-surface: var(--rag-warning-50);
+  --color-danger: var(--rag-danger-500);
+  --color-danger-surface: var(--rag-danger-50);
+
+  --color-focus-ring: var(--rag-garnet-500);
+
+  --shadow-sm: 0 1px 2px rgb(23 24 26 / 6%), 0 1px 1px rgb(23 24 26 / 4%);
+  --shadow-md: 0 2px 4px rgb(23 24 26 / 5%), 0 6px 16px -4px rgb(23 24 26 / 10%);
+  --shadow-lg: 0 2px 6px rgb(23 24 26 / 6%), 0 10px 36px -10px rgb(23 24 26 / 18%);
+}
+
+/* =============================================================================
+   COUCHE SÉMANTIQUE — thème sombre
+   ========================================================================== */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-canvas: var(--rag-neutral-950);
+  --color-canvas-veil: rgb(9 9 10 / 65%);
+  --color-surface: var(--rag-neutral-900);
+  --color-surface-raised: var(--rag-neutral-850);
+  --color-surface-sunken: var(--rag-neutral-1000);
+  --color-surface-hover: var(--rag-neutral-850);
+
+  --color-border: var(--rag-neutral-800);
+  --color-border-subtle: var(--rag-neutral-850);
+  --color-border-strong: var(--rag-neutral-700);
+
+  --color-text: var(--rag-neutral-100);
+  --color-text-muted: var(--rag-neutral-300);
+  --color-text-subtle: var(--rag-neutral-400);
+  --color-text-inverse: var(--rag-neutral-950);
+
+  --color-accent: var(--rag-garnet-300);
+  --color-accent-hover: var(--rag-garnet-200);
+  --color-accent-solid: var(--rag-garnet-400);
+  --color-accent-solid-hover: var(--rag-garnet-300);
+  --color-accent-contrast: var(--rag-neutral-950);
+  --color-accent-surface: rgb(225 60 101 / 16%);
+  --color-accent-border: rgb(243 155 177 / 32%);
+
+  --color-success: var(--rag-success-300);
+  --color-success-surface: rgb(47 125 79 / 18%);
+  --color-warning: var(--rag-warning-300);
+  --color-warning-surface: rgb(133 99 0 / 22%);
+  --color-danger: var(--rag-danger-300);
+  --color-danger-surface: rgb(176 58 44 / 20%);
+
+  --color-focus-ring: var(--rag-garnet-300);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 50%);
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 45%), 0 10px 24px -8px rgb(0 0 0 / 55%);
+  --shadow-lg: 0 12px 40px -10px rgb(0 0 0 / 70%);
+}

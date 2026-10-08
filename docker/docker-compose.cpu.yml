@@ -1,0 +1,92 @@
+# RAGEngine — inférence SANS GPU : les deux conteneurs TEI en version CPU (ADR-071).
+#
+# Remplace `docker-compose.gpu.yml` : à lancer à sa place, JAMAIS avec lui (mêmes
+# noms de services, de conteneurs et de ports). Il ne le modifie pas — c'est un
+# fichier à part, pour qu'aucune configuration GPU existante (dont la production)
+# ne change d'un caractère.
+#
+# Usage (depuis la racine du dépôt), la stack cœur tournant déjà (réseau `ragengine`) :
+#   docker compose --env-file .env -f docker/docker-compose.cpu.yml up -d
+# ou, tout enchaîné : `scripts/quickstart.sh cpu`.
+#
+# ─── Ce qui est vérifié, et ce qui ne l'est pas ──────────────────────────────
+# Vérifié dans les sources de TEI v1.9.0 et par `docker manifest inspect` :
+# - le tag `cpu-1.9` existe (ghcr.io/huggingface/text-embeddings-inference, amd64) ;
+# - sa branche CPU charge les architectures XLM-RoBERTa (`Config::XlmRoberta` ×
+#   `Device::Cpu` → `BertModel::load_roberta`, `backends/candle/src/lib.rs`), celles
+#   de BGE-M3 (embedding) et de bge-reranker-v2-m3 (classification de séquence,
+#   `model_type` choisi à l'exécution) ;
+# - même `Dockerfile` que l'image GPU : `PORT=80`, `HUGGINGFACE_HUB_CACHE=/data`,
+#   `curl` installé — donc même port, même volume et même healthcheck qu'en GPU.
+# NON vérifié : aucun conteneur n'a été démarré avec ce fichier (la machine de
+# développement n'avait pas la mémoire pour le faire). Ni la latence, ni
+# l'empreinte mémoire réelle, ni le bon fonctionnement bout en bout sur matériel
+# sans GPU ne sont mesurés. Attendre un ordre de grandeur plus lent qu'en GPU.
+#
+# Les poids téléchargés vont dans les MÊMES volumes que la variante GPU (poids
+# publics identiques, ADR-057) : passer de l'une à l'autre ne retélécharge rien.
+
+name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${RAGENGINE_LOG_MAX_SIZE:-10m}"
+    max-file: "${RAGENGINE_LOG_MAX_FILE:-3}"
+
+services:
+  inference-embedding:
+    image: ghcr.io/huggingface/text-embeddings-inference:${RAGENGINE_TEI_CPU_TAG:-cpu-1.9}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-inference-embedding
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --model-id
+      - ${RAGENGINE_INFERENCE_EMBEDDING_MODEL_ID:-BAAI/bge-m3}
+      # Même relèvement qu'en GPU : lots de 64 acceptés (ADR-051).
+      - --max-client-batch-size
+      - "64"
+    volumes:
+      - inference_embedding_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+    networks: [ragengine]
+    ports:
+      - "127.0.0.1:${RAGENGINE_INFERENCE_EMBEDDING_HOST_PORT:-9997}:80"
+
+  inference-reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:${RAGENGINE_TEI_CPU_TAG:-cpu-1.9}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-inference-reranker
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --model-id
+      - ${RAGENGINE_INFERENCE_RERANKER_MODEL_ID:-BAAI/bge-reranker-v2-m3}
+      - --max-client-batch-size
+      - "64"
+    volumes:
+      - inference_reranker_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+    networks: [ragengine]
+    ports:
+      - "127.0.0.1:${RAGENGINE_INFERENCE_RERANKER_HOST_PORT:-9998}:80"
+
+networks:
+  ragengine:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+    external: true
+
+volumes:
+  inference_embedding_data:
+    name: ragengine_inference_embedding_data
+  inference_reranker_data:
+    name: ragengine_inference_reranker_data

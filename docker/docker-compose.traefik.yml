@@ -1,0 +1,166 @@
+# RAGEngine — routeur Traefik + frontend statique (le plan de déploiement interne, Phase A).
+#
+# Usage (depuis la racine du dépôt) :
+#   docker compose --env-file .env -f docker/docker-compose.traefik.yml up -d
+#
+# PRÉREQUIS — la stack cœur doit tourner : c'est elle qui crée le réseau
+# applicatif de l'environnement visé, consommé ici en `external` (même
+# convention que docker-compose.gpu.yml / docker-compose.ragflow.yml) :
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d
+#
+# Ce fichier porte son propre nom de projet, cohérent avec `ragengine-gpu` /
+# `ragflow`.
+#
+# ─── Provider FICHIER, pas Docker — trouvé en vérification réelle ───────────
+# Le choix initial (labels Docker + provider `docker`, découverte automatique)
+# a été abandonné : le client Docker vendu par `traefik:v3.5` envoie sa toute
+# première requête de négociation en `GET /v1.24/version` (constante figée
+# dans sa bibliothèque cliente), quel que soit `DOCKER_API_VERSION`. Le démon
+# de cet hôte impose `MinAPIVersion=1.40` et rejette cette requête même de
+# bootstrap (400) — testé, y compris via un `docker-socket-proxy` intermédiaire
+# (qui relaie la requête telle quelle, sans traduire de version : même 400).
+# Négociation impossible avec cette combinaison Traefik/Docker Engine.
+#
+# Le provider `file` évite le problème à la racine : Traefik ne parle plus du
+# tout au démon Docker, il lit une config statique (`traefik/dynamic.yml`) qui
+# nomme les deux backends par leur `container_name` — bénéfice inattendu, mais
+# réel : aucun accès au socket Docker à donner à Traefik, alors qu'un accès
+# direct au socket est un accès root-équivalent à tout le démon.
+#
+# Conséquence assumée : `/api` et `/` sont routés par CHEMIN, pas par hôte —
+# suffisant tant qu'un seul couple (frontend, api) tourne derrière CE Traefik
+# (un Traefik par environnement, comme gpu.yml/ragflow.yml). Router plusieurs
+# environnements derrière un seul Traefik par hôte (option envisagée pour la
+# Phase C) redemanderait un vrai mécanisme de découverte ou un fichier
+# dynamique par environnement — à retrancher alors, pas aujourd'hui.
+
+name: ${RAGENGINE_PROJECT_NAME:-ragengine}-traefik
+
+# Rotation de logs par défaut — cf. docker-compose.yml pour l'incident qui l'a
+# motivée (2026-09-11, `langfuse-clickhouse`, 138 Go). Même plafond partout.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${RAGENGINE_LOG_MAX_SIZE:-10m}"
+    max-file: "${RAGENGINE_LOG_MAX_FILE:-3}"
+
+services:
+  traefik:
+    image: traefik:v3.5
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-traefik
+    restart: unless-stopped
+    logging: *default-logging
+    # IP cliente réelle (ADR-052) : l'entrypoint `web` ne conserve
+    # X-Forwarded-For / X-Forwarded-Proto que venant du sous-réseau Docker de ce
+    # conteneur — celui où `cloudflared` doit vivre — puis y ajoute l'IP du pair.
+    # Le sous-réseau est attribué par Docker (différent en dev et en prod) : lu
+    # au démarrage dans la table de routage, jamais écrit en dur ; introuvable
+    # ⇒ Traefik ne démarre pas. Jamais `forwardedheaders.insecure`. L'arbitre
+    # final est uvicorn (backend/app/core/trusted_proxies.py), qui n'approuve
+    # pas la passerelle : un en-tête forgé via un port publié reste sans effet.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        iface="$$(ip -4 route show default | awk '{print $$5; exit}')"
+        subnet="$$(ip -4 route show dev "$$iface" scope link | awk '{print $$1; exit}')"
+        [ -n "$$subnet" ] || { echo "traefik: sous-réseau Docker introuvable" >&2; exit 1; }
+        exec /entrypoint.sh "$$@" --entrypoints.web.forwardedheaders.trustedips="$$subnet"
+      - traefik-entrypoint
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --api.dashboard=false
+      - --ping=true
+      - --log.level=${RAGENGINE_TRAEFIK_LOG_LEVEL:-INFO}
+    volumes:
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+    ports:
+      # Boucle locale par défaut, même politique que le reste de la stack
+      # (docker-compose.yml, service `api`) : l'exposition publique passe par
+      # le tunnel Cloudflare (Phase C), qui rejoindra ce conteneur par le
+      # réseau Docker directement (`traefik:80`), pas par ce port hôte — celui-
+      # ci ne sert qu'à la vérification locale et à un accès LAN explicite.
+      # INVARIANT DE SÉCURITÉ (ADR-052), pas une préférence : tout ce qui entre
+      # par un port publié arrive sous l'IP de la passerelle Docker, que la
+      # chaîne de confiance n'approuve jamais — un cloudflared pointé ici
+      # ferait partager une seule IP (et son plafond) à tout l'Internet.
+      - "${RAGENGINE_TRAEFIK_BIND_ADDRESS:-127.0.0.1}:${RAGENGINE_TRAEFIK_HOST_PORT:-8090}:80"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      ragengine:
+        # Cible du tunnel (Phase C) : `http://traefik:80`. Nom fixe, même
+        # raisonnement que l'alias `frontend` ci-dessous.
+        aliases: [traefik]
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        # Marque affichée par la SPA ; vide : celle du greffon, sinon RAGEngine.
+        VITE_APP_NAME: ${VITE_APP_NAME:-}
+    image: ragengine/frontend:${RAGENGINE_IMAGE_TAG:-dev}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-frontend
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      ragengine:
+        # Nom FIXE, indépendant de RAGENGINE_PROJECT_NAME : `traefik/dynamic.yml`
+        # est un fichier statique (pas de substitution ${...} côté Traefik,
+        # contrairement à ce fichier compose) et doit pouvoir nommer ce service
+        # sans connaître le nom de projet de l'environnement qui l'exécute.
+        # Même raisonnement, même patron que l'alias `ragflow` posé sur
+        # `ragflow-cpu` dans docker-compose.ragflow.yml.
+        aliases: [frontend]
+
+  # Cloudflare Tunnel (Phase C, le plan de déploiement interne) — sortant uniquement,
+  # aucun port ouvert sur le routeur. `profiles: [tunnel]` : ni `up -d` normal
+  # (dev ou prod) ne démarre jamais ce service sans le profil explicite —
+  # dev n'est jamais exposé publiquement (le plan de déploiement interne, Phase C).
+  # Ingress `http://traefik:80` fixé côté Cloudflare (hors de ce dépôt) : la
+  # seule responsabilité d'ici est que ce conteneur soit sur le même réseau
+  # Docker que `traefik` pour que ce nom résolve (ADR-052).
+  # Tag épinglé sur la dernière release stable au moment de l'écriture
+  # (2026.9.1, cloudflare/cloudflared, vérifiée via `gh api
+  # repos/cloudflare/cloudflared/releases/latest` le 2026-09-14) — jamais
+  # `latest`. À revérifier avant la première connexion réelle du tunnel si
+  # cette mission a été préparée puis démarrée à une date ultérieure.
+  #
+  # `--protocol http2` (ADR-052, addendum 2026-09-16) : force le transport
+  # TCP au lieu du QUIC/UDP par défaut. Constaté en prod (`docker logs
+  # <projet>-cloudflared`) : les 4 connexions edge tombaient toutes les
+  # ~15 minutes (`accept stream listener error: … timeout: no recent
+  # network activity`), rouvertes ensuite en quelques secondes — une requête
+  # démarrée ou en cours pendant cette fenêtre remonte en `520`/`530` côté
+  # Cloudflare, quelle que soit sa taille. Diagnostiqué comme un
+  # dysfonctionnement du chemin UDP sortant de cette machine (routeur/FAI),
+  # pas un défaut de cet applicatif : un upload de 943 ko puis 8,9 Mo est
+  # passé sans erreur, en direct sur Traefik ET à travers le tunnel, hors de
+  # ces fenêtres. Le flag n'apparaît plus dans `cloudflared --help` (protocole
+  # marqué obsolète côté documentation) mais reste fonctionnel sur ce build
+  # (vérifié : connexions edge réellement établies en `protocol=http2`) —
+  # à revérifier si une mise à jour de l'image le retire pour de bon.
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-cloudflared
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: [tunnel]
+    command: tunnel --no-autoupdate --protocol http2 run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks: [ragengine]
+
+networks:
+  # Créé par la stack cœur (PRÉREQUIS ci-dessus), jamais par ce fichier.
+  ragengine:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+    external: true

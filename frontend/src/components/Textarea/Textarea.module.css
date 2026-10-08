@@ -1,0 +1,8 @@
+.textarea {
+  composes: control from '../field-control.module.css';
+
+  display: block;
+  resize: vertical;
+  min-block-size: 5rem;
+  line-height: var(--rag-leading-normal);
+}

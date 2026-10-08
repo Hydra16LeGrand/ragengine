@@ -1,0 +1,14 @@
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.version {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  padding-inline-start: var(--rag-space-2);
+  border-inline-start: var(--rag-border-thin) solid var(--color-border);
+}

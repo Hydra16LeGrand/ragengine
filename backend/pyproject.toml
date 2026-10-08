@@ -1,0 +1,139 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ragengine-backend"
+description = "Façade FastAPI de RAGEngine — API REST versionnée du moteur RAG souverain."
+requires-python = ">=3.12"
+dynamic = ["version"]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    # `email` : validation des adresses des schémas d'identité (EmailStr).
+    "pydantic[email]>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy[asyncio]>=2.0",
+    "alembic>=1.14",
+    "asyncpg>=0.30",
+    "celery[redis]>=5.4",
+    "redis>=5.2",
+    # argon2id : hachage des mots de passe (docs/domain-model.md §1). Implémentation
+    # de référence liée à la libargon2 upstream — jamais de KDF maison.
+    "argon2-cffi>=23.1",
+    # Chiffrement réversible des clés LLM tierces fournies par l'utilisateur
+    # (app.core.security) — déjà présent en transitif, rendu explicite.
+    "cryptography>=50.0.0",
+    "httpx>=0.28",
+    # Analyse du corps `multipart/form-data` par Starlette : sans elle, FastAPI
+    # refuse à l'import toute route déclarant `UploadFile`/`Form` (ADR-014).
+    "python-multipart>=0.0.20",
+    "python-json-logger>=3.1",
+    # LLMPort (app/providers/llm/) : SDK officiels, jamais de client HTTP maison.
+    "anthropic>=0.70",
+    "openai>=1.60",
+    "groq>=1.6.0",
+    # ObservabilityPort (app/providers/observability/) : export OTLP standard,
+    # consommé par Langfuse — pas de SDK propriétaire (CONTRIBUTING.md §3, ADR à venir).
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp-proto-http>=1.27",
+    # Precheck (app/ingestion/precheck/) : analyse LÉGÈRE du document avant tout
+    # appel au moteur d'ingestion. Aucune de ces briques ne charge de modèle ni
+    # ne touche au GPU (CONTRIBUTING.md §2) — l'OCR réel reste à RAGFlow, après la
+    # décision utilisateur. Licences relevées comme l'exige l'ADR-006.
+    "pdfplumber>=0.11",  # MIT — pages, texte extractible, tableaux réglés, images
+    "openpyxl>=3.1",  # MIT — lecture en flux des classeurs .xlsx
+    "langdetect>=1.0.9",  # Apache-2.0 — n-grammes, ~1 Mo, aucun modèle à télécharger
+    # Métriques IR (Phase 12, Étape 0 — app/services/retrieval_metrics.py) :
+    # recall@k/MRR à partir de `EvaluationItem.retrieval_rank`. Apache-2.0, CPU
+    # uniquement, aucun modèle téléchargé — pas la même dépendance que le script
+    # mainteneur `rag/benchmark.py` de RAGFlow (qui l'utilise aussi), ajoutée ici
+    # comme bibliothèque propre à RAGEngine.
+    "ranx>=0.3.21",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "pytest-cov>=6.0",
+    # Fabrication des fichiers de test du precheck (PDF texte, PDF « scanné »,
+    # PDF à tableau réglé) : aucun binaire n'est commité, tout est régénéré à
+    # l'exécution. Dépendance de test uniquement. BSD.
+    "reportlab>=4.2",
+    # Lecture de fichiers YAML par les tests (configuration Traefik) et par les
+    # outils de mesure internes. PyYAML était jusqu'ici
+    # une dépendance **transitive** (tirée par `uvicorn[standard]`, verrouillée
+    # dans `uv.lock`) : elle marchait par chance, et aurait disparu au premier
+    # changement d'extras d'uvicorn. Déclarée explicitement puisqu'on s'en sert.
+    # MIT.
+    "pyyaml>=6.0",
+    "types-PyYAML>=6.0",
+]
+
+[tool.hatch.version]
+path = "app/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "ANN", # flake8-annotations (typage exhaustif, cf. CONTRIBUTING.md §6)
+    "C4",  # flake8-comprehensions
+    "PT",  # flake8-pytest-style
+    "TID", # flake8-tidy-imports
+    "RUF", # règles ruff
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+# Ces trois briques du precheck n'expédient pas de marqueur `py.typed` (pdfplumber,
+# lui, est typé et reste analysé normalement). Leurs appels sont encapsulés dans
+# `app/ingestion/precheck/`, qui reste vérifié en strict de bout en bout.
+module = ["langdetect.*", "openpyxl.*", "reportlab.*", "ranx.*"]
+ignore_missing_imports = true
+
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--strict-markers --strict-config"
+markers = [
+    "live_ragflow: exerce la stack RAGFlow + TEI réellement déployée (réseau, lent).",
+]

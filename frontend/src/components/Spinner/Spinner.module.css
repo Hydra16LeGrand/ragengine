@@ -1,0 +1,23 @@
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex: none;
+  animation: rotate 0.7s linear infinite;
+}
+
+.track {
+  stroke: currentcolor;
+  opacity: 0.25;
+  stroke-width: 2;
+}
+
+.head {
+  stroke: currentcolor;
+  stroke-width: 2;
+}
+
+@keyframes rotate {
+  to {
+    rotate: 360deg;
+  }
+}

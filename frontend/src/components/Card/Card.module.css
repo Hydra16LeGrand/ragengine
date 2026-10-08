@@ -1,0 +1,100 @@
+.card {
+  position: relative;
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-lg);
+  background-color: var(--color-surface);
+  padding-block: var(--rag-space-6);
+  padding-inline: var(--rag-space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Sous 30rem, la gouttière de page (`AppLayout.module.css`) redescend déjà à
+   16px : la carte n'a pas à en rajouter 24 pleins par-dessus, seulement de
+   quoi séparer le texte de son propre bord. Rembourrage vertical inchangé —
+   seule la largeur utile était en cause. */
+@media (width <= 30rem) {
+  .card {
+    padding-inline: var(--rag-space-4);
+  }
+}
+
+.flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* --- Tonalités ------------------------------------------------------------ */
+.sunken {
+  background-color: var(--color-surface-sunken);
+  box-shadow: none;
+}
+
+.accent {
+  border-color: var(--color-accent-border);
+  background-color: var(--color-accent-surface);
+  box-shadow: none;
+}
+
+.danger {
+  border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+  background-color: var(--color-danger-surface);
+  box-shadow: none;
+}
+
+/* --- En-tête -------------------------------------------------------------- */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  flex-wrap: wrap;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.eyebrow {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.title {
+  font-size: var(--rag-text-md);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.description {
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-sm);
+  max-inline-size: 60ch;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  flex: none;
+}
+
+.body {
+  margin-block-start: var(--rag-space-5);
+}
+
+.footer {
+  margin-block-start: var(--rag-space-5);
+  padding-block-start: var(--rag-space-4);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}

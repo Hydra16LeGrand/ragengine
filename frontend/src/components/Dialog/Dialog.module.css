@@ -1,0 +1,130 @@
+.dialog {
+  /* Le reset global (`* { margin: 0 }`, `src/design/global.css`) écrase le
+     `margin: auto` que la feuille UA applique à `dialog:modal` pour le
+     centrer — sans ce override, la boîte reste collée en haut à gauche du
+     viewport (`inset-block-start: 0` sans compensation). */
+  margin: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  max-inline-size: min(34rem, calc(100vw - var(--rag-space-8)));
+  inline-size: 100%;
+  max-block-size: calc(100dvh - var(--rag-space-16));
+  overflow: visible;
+}
+
+.dialog::backdrop {
+  background-color: var(--color-canvas-veil);
+  backdrop-filter: blur(3px);
+  animation: fade var(--rag-duration-base) var(--rag-ease-out);
+}
+
+.dialog[open] .panel {
+  animation: rise var(--rag-duration-base) var(--rag-ease-out);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  max-block-size: calc(100dvh - var(--rag-space-16));
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-lg);
+  background-color: var(--color-surface-raised);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  /* `showModal()` rend le fond inerte au clavier et aux lecteurs d'écran, mais
+     **pas** à la molette : sans cette règle, une molette qui n'a plus rien à
+     faire défiler dans la modale se propage à la page derrière, qui bouge sous
+     un contenu figé. Posée ici — sur le composant partagé — plutôt que dans
+     chaque dialogue : le défaut ne vient pas d'un écran mais du gabarit. */
+  overscroll-behavior: contain;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-6) var(--rag-space-6) var(--rag-space-4);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.title {
+  font-size: var(--rag-text-lg);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.description {
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-sm);
+}
+
+.close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--rag-radius-sm);
+  color: var(--color-text-subtle);
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.close:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.close svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  stroke-width: 1.75;
+}
+
+.body {
+  padding-inline: var(--rag-space-6);
+  padding-block-end: var(--rag-space-2);
+  overflow-y: auto;
+  /* Seule zone réellement défilante de la modale : c'est d'elle que partirait
+     le chaînage vers la page de fond, une fois arrivée en butée — ou tout de
+     suite quand son contenu tient sans déborder. */
+  overscroll-behavior: contain;
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-sm);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+  padding: var(--rag-space-5) var(--rag-space-6);
+  margin-block-start: var(--rag-space-2);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+  background-color: var(--color-surface);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 var(--rag-space-3);
+    scale: 0.985;
+  }
+}

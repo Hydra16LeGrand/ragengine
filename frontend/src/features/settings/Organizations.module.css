@@ -1,0 +1,170 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.error {
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}
+
+/* --- Fil d'Ariane / retour ------------------------------------------------ */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-1);
+  color: var(--color-text-subtle);
+  font-size: var(--rag-text-xs);
+  text-decoration: none;
+  transition: color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.backLink:hover {
+  color: var(--color-accent);
+}
+
+.backLink svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  stroke-width: 1.75;
+}
+
+.slug {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  padding: 0.15rem var(--rag-space-2);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+/* --- Liste (organisations, membres) --------------------------------------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  margin-block-start: var(--rag-space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.rowLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink:hover .name {
+  color: var(--color-accent);
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.rowIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  flex-wrap: wrap;
+}
+
+.name {
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  transition: color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex: none;
+}
+
+.you {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+/* --- Formulaires ----------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.lookup {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--rag-space-3);
+  margin-block-start: var(--rag-space-5);
+  padding-block-start: var(--rag-space-5);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.lookupField {
+  flex: 1 1 auto;
+}
+
+.result {
+  margin-block-start: var(--rag-space-3);
+}
+
+.resultEmpty {
+  margin: 0;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.resultError {
+  margin: 0;
+  font-size: var(--rag-text-xs);
+  color: var(--color-danger);
+}
+
+.resultActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  margin-block-start: var(--rag-space-2);
+}
+
+@media (max-width: 32rem) {
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rowActions {
+    justify-content: flex-end;
+  }
+
+  .lookup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

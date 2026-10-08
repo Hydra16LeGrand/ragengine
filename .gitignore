@@ -1,0 +1,52 @@
+# --- Environnements & secrets ---
+.env
+.env.*
+# .env.prod est un GABARIT versionné (placeholders "change-me",
+# jamais de secret réel), au même titre que .env.example — le plan de déploiement interne,
+# Phase B. Ne JAMAIS y écrire de vraie valeur directement : copier vers un nom
+# distinct (`.env.prod.local` par ex. — toujours ignoré par la règle `.env.*`
+# ci-dessus) avant de renseigner quoi que ce soit de réel.
+!.env.example
+!.env.prod
+venv/
+.venv/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Node / Frontend ---
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+.eslintcache
+
+# --- Docker / données locales ---
+docker/volumes/
+*.log
+
+# --- Modèles & artefacts lourds ---
+# Ancré à la racine (`/models/`) : un motif nu `models/` correspond à N'IMPORTE
+# QUEL dossier de ce nom dans l'arbre, y compris `backend/app/db/models/` (les
+# modèles SQLAlchemy) — fait constaté le 2026-07-29, ce dossier applicatif
+# entier n'avait donc jamais été suivi par git depuis la Phase 1.
+/models/
+*.onnx
+*.safetensors
+*.gguf
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+
+# --- Sauvegardes locales (scripts/backup-postgres.sh) ---
+/backups/

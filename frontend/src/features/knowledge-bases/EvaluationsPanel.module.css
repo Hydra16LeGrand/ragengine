@@ -1,0 +1,459 @@
+/* =============================================================================
+   Panneau d'évaluations — historique des runs et détail d'un run.
+   Même grammaire visuelle que `DocumentsPanel` : la liste sort des marges de la
+   carte pour que ses séparateurs aillent d'un bord à l'autre.
+   ========================================================================== */
+
+.list {
+  list-style: none;
+  margin-block: var(--rag-space-5) calc(-1 * var(--rag-space-6));
+  margin-inline: calc(-1 * var(--rag-space-6));
+  padding: 0;
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.item + .item {
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Un run déplié est le sujet du moment : on le détache du reste de la liste. */
+.itemOpen {
+  background: var(--color-surface-hover);
+}
+
+/* --- Ligne de résumé (bouton d'accordéon) --------------------------------- */
+
+.summary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-5);
+  inline-size: 100%;
+  padding-block: var(--rag-space-4);
+  padding-inline: var(--rag-space-6);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.summary:hover {
+  background: var(--color-surface-hover);
+}
+
+.summary:focus-visible {
+  outline: var(--rag-border-thick) solid var(--color-focus-ring);
+  outline-offset: calc(-1 * var(--rag-border-thick));
+}
+
+.summarySkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  padding-block: var(--rag-space-4);
+  padding-inline: var(--rag-space-6);
+}
+
+.summaryMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.dateRow {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+}
+
+.date {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--rag-space-1) var(--rag-space-3);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.meta > span + span::before {
+  content: '◆';
+  margin-inline-end: var(--rag-space-3);
+  font-size: 0.5em;
+  vertical-align: middle;
+  color: var(--color-border-strong);
+}
+
+.chevron {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: var(--color-text-subtle);
+  stroke-width: 1.5;
+  transition: transform var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.summary[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+/* --- Barres de score ------------------------------------------------------ */
+
+.meters {
+  display: flex;
+  gap: var(--rag-space-5);
+  flex: none;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  inline-size: 8.5rem;
+}
+
+.meterHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-2);
+}
+
+.meterLabel {
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.meterValue {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.meterEmpty {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+
+.meterTrack {
+  display: block;
+  block-size: 0.3125rem;
+  border-radius: var(--rag-radius-full);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.meterFill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--rag-duration-slow) var(--rag-ease-out);
+}
+
+/* Teintes partagées par la valeur chiffrée et le remplissage de la barre. */
+.success {
+  color: var(--color-success);
+}
+
+.warning {
+  color: var(--color-warning);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.meterFill.success {
+  background: var(--color-success);
+}
+
+.meterFill.warning {
+  background: var(--color-warning);
+}
+
+.meterFill.danger {
+  background: var(--color-danger);
+}
+
+/* --- Détail d'un run (items) --------------------------------------------- */
+
+.details {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  margin: 0;
+  padding-inline: var(--rag-space-6);
+  padding-block-end: var(--rag-space-5);
+}
+
+.detailsEmpty {
+  margin: 0;
+  padding-inline: var(--rag-space-6);
+  padding-block-end: var(--rag-space-5);
+  font-size: var(--rag-text-sm);
+  color: var(--color-text-subtle);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background: var(--color-surface);
+}
+
+.detailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}
+
+.detailIndex {
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.detailBadges {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  flex-wrap: wrap;
+}
+
+.question {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  line-height: var(--rag-leading-snug);
+  color: var(--color-text);
+}
+
+.answers {
+  display: grid;
+  gap: var(--rag-space-3);
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  /* Référence et génération se lisent côte à côte : c'est leur écart qui
+     intéresse, et le comparer en scrollant serait absurde. La justification du
+     juge reprend toute la largeur, dessous. */
+  .answers {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rationale {
+    grid-column: 1 / -1;
+  }
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.answer > dt {
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.answer > dd {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.rationale > dd {
+  padding-inline-start: var(--rag-space-3);
+  border-inline-start: var(--rag-border-thick) solid var(--color-border);
+  font-style: italic;
+}
+
+/* --- Run en cours -------------------------------------------------------- */
+
+.running {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rag-space-3);
+  margin-block-start: var(--rag-space-5);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-accent-border);
+  border-radius: var(--rag-radius-md);
+  background: var(--color-accent-surface);
+}
+
+.runningSpinner {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-block-start: 0.0625rem;
+  color: var(--color-accent);
+}
+
+.runningText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+}
+
+.runningTitle {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.runningHint {
+  margin: 0;
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text-muted);
+}
+
+/* --- Refus du lancement -------------------------------------------------- */
+
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  margin-block-start: var(--rag-space-5);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-danger);
+  border-radius: var(--rag-radius-md);
+  background: var(--color-danger-surface);
+}
+
+.failureTitle {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.failureDetail {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text-muted);
+}
+
+.failureHint {
+  margin: 0;
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text-subtle);
+}
+
+.error {
+  margin-block-start: var(--rag-space-4);
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}
+
+/* --- Modale de lancement ------------------------------------------------- */
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.dialogNotice,
+.dialogWarning {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text-muted);
+}
+
+.dialogWarning {
+  padding: var(--rag-space-3);
+  border-inline-start: var(--rag-border-thick) solid var(--color-warning);
+  border-radius: var(--rag-radius-xs);
+  background: var(--color-warning-surface);
+  font-size: var(--rag-text-xs);
+}
+
+/* --- Étroit -------------------------------------------------------------- */
+
+@media (max-width: 47.99rem) {
+  .summary {
+    flex-wrap: wrap;
+    gap: var(--rag-space-3);
+  }
+
+  .meters {
+    inline-size: 100%;
+    justify-content: space-between;
+  }
+
+  .meter {
+    inline-size: calc(50% - var(--rag-space-3));
+  }
+
+  /* Les barres passent sous les métadonnées : le chevron quitte le flux pour
+     rester à hauteur de la date, là où l'œil cherche l'affordance. */
+  .chevron {
+    position: absolute;
+    inset-block-start: var(--rag-space-4);
+    inset-inline-end: var(--rag-space-6);
+  }
+}
+
+/* `.list` sort des marges de la carte par une marge négative calée sur le
+   rembourrage plein de `Card` (24px) — sous ce seuil, `Card.module.css`
+   réduit ce rembourrage à 16px : sans cet accord, la liste et le chevron
+   positionné en absolu débordaient de 8px du bord de la carte. `.summary`,
+   `.details` et `.detailsEmpty` reprennent la même valeur pour rester
+   alignés sur ce nouveau bord. */
+@media (width <= 30rem) {
+  .list {
+    margin-inline: calc(-1 * var(--rag-space-4));
+  }
+
+  .summary,
+  .summarySkeleton {
+    padding-inline: var(--rag-space-4);
+  }
+
+  .details,
+  .detailsEmpty {
+    padding-inline: var(--rag-space-4);
+  }
+
+  .chevron {
+    inset-inline-end: var(--rag-space-4);
+  }
+}

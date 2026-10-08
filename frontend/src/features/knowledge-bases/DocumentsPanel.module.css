@@ -1,0 +1,199 @@
+.list {
+  list-style: none;
+  margin-block: var(--rag-space-5) calc(-1 * var(--rag-space-6));
+  margin-inline: calc(-1 * var(--rag-space-6));
+  padding: 0;
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+/* Même matière que `.primaryLink` de `KnowledgeBasePages.module.css` : un
+   appel à l'action, pas une simple navigation de fil d'Ariane — dupliqué
+   plutôt que partagé entre feuilles de style de composants distincts. */
+.emptyAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 2.5rem;
+  padding-inline: var(--rag-space-5);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  text-decoration: none;
+}
+
+.emptyAction:hover {
+  background-color: var(--color-accent-solid-hover);
+  color: var(--color-accent-contrast);
+}
+
+/* La ligne est une colonne : l'identité et les actions tiennent sur une même
+   rangée (`.itemRow`), le dépli de la cause d'échec s'ouvre dessous sans
+   déformer cette rangée. */
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding-block: var(--rag-space-4);
+  padding-inline: var(--rag-space-6);
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+}
+
+/* Sous 30rem, `.itemActions` (« Ouvrir », le badge, « Voir les fragments »)
+   ne rétrécit jamais (`flex-shrink: 0` ci-dessous) : sur un téléphone, ça
+   écrasait `.itemMain` à quelques caractères de large, au point de couper le
+   nom du fichier lettre par lettre (`overflow-wrap: anywhere` n'avait alors
+   plus aucun mot entier à préserver) — constaté en conditions réelles,
+   2026-09-07. Empilé, chaque bloc retrouve toute la largeur disponible. */
+@media (width <= 30rem) {
+  .itemRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .itemActions {
+    flex-wrap: wrap;
+  }
+
+  /* `.list` sort des marges de la carte par une marge négative calée sur le
+     rembourrage plein de `Card` (24px) — sous ce seuil, `Card.module.css`
+     réduit ce rembourrage à 16px : sans cet accord, la liste débordait de 8px
+     de chaque côté du bord de la carte. `.item`/`.itemTracked` reprennent la
+     même valeur pour rester alignés sur ce nouveau bord. */
+  .list {
+    margin-inline: calc(-1 * var(--rag-space-4));
+  }
+
+  .item,
+  .itemTracked {
+    padding-inline: var(--rag-space-4);
+  }
+}
+
+.item + .item {
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.itemMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.filename {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--rag-space-1) var(--rag-space-3);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+/* Séparateur en losange entre métadonnées : plus discret qu'un tiret. */
+.meta > span + span::before {
+  content: '◆';
+  margin-inline-end: var(--rag-space-3);
+  font-size: 0.5em;
+  vertical-align: middle;
+  color: var(--color-border-strong);
+}
+
+.languages {
+  font-family: var(--rag-font-mono);
+  letter-spacing: var(--rag-tracking-wide);
+}
+
+/* Options de precheck retenues, rappelées une fois le document indexé — même
+   ligne que `.meta`, badges plutôt que texte pour rester scannable dans une
+   liste dense. */
+.appliedOptions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rag-space-1);
+}
+
+.error {
+  margin-block-start: var(--rag-space-4);
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}
+
+/* Dépli de la cause d'un échec ou d'un avertissement qualité. Le contenu est
+   rendu par `features/ingestion/JobOutcome` — même bloc que pendant le
+   versement, pour qu'un même défaut se lise pareil aux deux endroits. */
+.outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+}
+
+.outcomeLoading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+}
+
+.outcomeEmpty {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex-shrink: 0;
+}
+
+.openLink {
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.openLink:hover {
+  text-decoration: underline;
+}
+
+/* Ligne suivie par `JobTracker` : plein format, la ligne statique voisine reste
+   compacte pour ne pas dilater toute la liste tant qu'un seul document est en
+   cours. */
+.itemTracked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding-block: var(--rag-space-4);
+  padding-inline: var(--rag-space-6);
+}
+
+.itemTracked + .item,
+.item + .itemTracked,
+.itemTracked + .itemTracked {
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.trackedHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+}

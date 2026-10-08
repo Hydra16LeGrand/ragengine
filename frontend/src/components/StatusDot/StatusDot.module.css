@@ -1,0 +1,43 @@
+.dot {
+  display: inline-block;
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: var(--rag-radius-full);
+  background-color: currentcolor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 18%, transparent);
+}
+
+.neutral {
+  color: var(--color-text-subtle);
+}
+
+.success {
+  color: var(--color-success);
+}
+
+.warning {
+  color: var(--color-warning);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.pending {
+  color: var(--color-accent);
+  animation: pulse 1.6s var(--rag-ease-in-out) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 18%, transparent);
+  }
+
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 6px color-mix(in srgb, currentcolor 0%, transparent);
+  }
+}

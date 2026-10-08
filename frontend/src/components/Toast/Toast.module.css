@@ -1,0 +1,115 @@
+.viewport {
+  position: fixed;
+  inset-block-end: var(--rag-space-6);
+  inset-inline-end: var(--rag-space-6);
+  z-index: var(--rag-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  inline-size: min(24rem, calc(100vw - var(--rag-space-8)));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-raised);
+  box-shadow: var(--shadow-lg);
+  animation: slide-in var(--rag-duration-slow) var(--rag-ease-out);
+}
+
+/* Filet coloré en bord d'attaque : la tonalité se lit avant le texte. */
+.toast::before {
+  content: '';
+  position: absolute;
+  inset-block: var(--rag-space-4);
+  inset-inline-start: 0;
+  inline-size: 2px;
+  border-radius: var(--rag-radius-full);
+  background-color: currentcolor;
+}
+
+.toast {
+  position: relative;
+  overflow: hidden;
+}
+
+.icon {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-block-start: 0.05rem;
+  stroke-width: 1.5;
+}
+
+.success {
+  color: var(--color-success);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.info {
+  color: var(--color-accent);
+}
+
+.text {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+}
+
+.title {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-tight);
+  color: var(--color-text);
+}
+
+.description {
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-snug);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: var(--rag-radius-xs);
+  color: var(--color-text-subtle);
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.close:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.close svg {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  stroke-width: 1.75;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    translate: 0 var(--rag-space-4);
+  }
+}

@@ -1,0 +1,207 @@
+/* =============================================================================
+   RAGEngine — Reset moderne + application des jetons
+   Importé une seule fois, depuis `src/main.tsx`.
+   ========================================================================== */
+
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  tab-size: 2;
+}
+
+html:focus-within {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-block-size: 100dvh;
+  /* Filet de sécurité, pas une excuse pour ignorer un débordement trouvé :
+     un seul élément trop large (identifiant technique non enveloppé, grille
+     rigide) suffit à forcer tout le viewport mobile à zoomer en arrière pour
+     l'afficher, faute de ce filet — vécu réellement (`.slug`/`.identifier`
+     sans `overflow-wrap`, corrigés le même jour). Un défilement interne
+     (`overflow-x: auto` posé sur son propre conteneur, ex. `Developers
+     GuidePage.module.css`) reste intact : ceci ne borne que la page entière. */
+  overflow-x: hidden;
+  background-color: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--rag-font-sans);
+  font-size: var(--rag-text-base);
+  line-height: var(--rag-leading-normal);
+  font-weight: var(--rag-weight-regular);
+  letter-spacing: var(--rag-tracking-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis-weight: none;
+  transition:
+    background-color var(--rag-duration-base) var(--rag-ease-standard),
+    color var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+#root {
+  isolation: isolate;
+  min-block-size: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Titres : géométrique, resserré ------------------------------------- */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--rag-font-display);
+  font-weight: var(--rag-weight-semibold);
+  line-height: var(--rag-leading-tight);
+  letter-spacing: var(--rag-tracking-tight);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--rag-text-2xl);
+  letter-spacing: var(--rag-tracking-tighter);
+}
+
+h2 {
+  font-size: var(--rag-text-xl);
+}
+
+h3 {
+  font-size: var(--rag-text-lg);
+}
+
+p,
+li,
+dd {
+  text-wrap: pretty;
+}
+
+/* --- Médias & formulaires ------------------------------------------------ */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+svg {
+  fill: none;
+  stroke: currentcolor;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+ul[role='list'],
+ol[role='list'] {
+  list-style: none;
+  padding: 0;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--rag-font-mono);
+  font-size: 0.9em;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+hr {
+  border: none;
+  border-block-start: var(--rag-border-thin) solid var(--color-border);
+}
+
+/* --- Focus visible : anneau unique, piloté par les jetons ---------------- */
+:focus-visible {
+  outline: var(--rag-border-thick) solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--rag-radius-xs);
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background-color: var(--color-accent-surface);
+  color: var(--color-accent);
+}
+
+::placeholder {
+  color: var(--color-text-subtle);
+  opacity: 1;
+}
+
+/* --- Barres de défilement discrètes ------------------------------------- */
+* {
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+/* --- Accessibilité : mouvement réduit ------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- Utilitaire : masquage visuel accessible ---------------------------- */
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

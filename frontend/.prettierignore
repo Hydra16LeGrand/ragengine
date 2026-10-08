@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.min.*
+package-lock.json
+
+# Types générés depuis l'OpenAPI du backend (`npm run generate:api`) :
+# la mise en forme est celle de l'outil, on ne la rejoue pas.
+src/api/schema.ts
+src/plugins/*/api/schema.ts

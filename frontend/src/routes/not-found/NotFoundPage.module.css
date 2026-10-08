@@ -1,0 +1,28 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rag-space-4);
+  padding-block: var(--rag-space-16);
+  max-inline-size: 40rem;
+}
+
+.code {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-xs);
+  letter-spacing: var(--rag-tracking-wide);
+  color: var(--color-text-subtle);
+}
+
+.description {
+  color: var(--color-text-muted);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  margin-block-start: var(--rag-space-2);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+}

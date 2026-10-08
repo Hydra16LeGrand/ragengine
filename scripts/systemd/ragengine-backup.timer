@@ -1,0 +1,15 @@
+[Unit]
+Description=Planification quotidienne de la sauvegarde RAGEngine (production)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+# Rattrape une exécution manquée (portable éteint/en veille à 3h) au prochain
+# démarrage de l'instance systemd --user, plutôt que de la perdre en silence
+# comme le ferait une ligne cron nocturne sur une machine parfois éteinte
+# (ADR-067). RandomizedDelaySec évite juste un alignement exact à la seconde,
+# sans intérêt de contention ici (une seule machine).
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

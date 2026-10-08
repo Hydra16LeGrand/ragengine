@@ -1,0 +1,181 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+.error {
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}
+
+/* --- Liste ------------------------------------------------------------ */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  margin-block-start: var(--rag-space-5);
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.rowIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  flex-wrap: wrap;
+}
+
+.name {
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+}
+
+.prefix {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+  padding: 0.15rem var(--rag-space-2);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rag-space-1) var(--rag-space-3);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex: none;
+}
+
+/* Même motif que `Organizations.module.css` (`.row`/`.rowActions`), qui
+   l'avait déjà et pas ce fichier : sous 32rem, `.rowActions` (badge de statut
+   + bouton « Révoquer ») ne rétrécissant jamais, elle finissait par écraser
+   `.rowMain` — passe d'espacements mobile, 2026-09-17. */
+@media (max-width: 32rem) {
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rowActions {
+    justify-content: flex-end;
+  }
+}
+
+/* --- Formulaire de création --------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.scopeFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.scopeLegend {
+  padding: 0;
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+}
+
+.scopeHint {
+  margin: 0;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.scopeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rag-space-2) var(--rag-space-4);
+  padding: var(--rag-space-3);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.scopeError {
+  margin: 0;
+  font-size: var(--rag-text-xs);
+  color: var(--color-danger);
+}
+
+@media (max-width: 32rem) {
+  .scopeGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Révélation du jeton ------------------------------------------------- */
+
+.reveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+}
+
+.revealWarning {
+  margin: 0;
+  padding: var(--rag-space-3);
+  border-inline-start: var(--rag-border-thick) solid var(--color-danger);
+  border-radius: var(--rag-radius-xs);
+  background: var(--color-danger-surface);
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text);
+}
+
+.tokenBox {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.token {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  user-select: all;
+}

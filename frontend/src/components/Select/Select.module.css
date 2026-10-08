@@ -1,0 +1,33 @@
+.wrapper {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+}
+
+.select {
+  composes: control from '../field-control.module.css';
+
+  appearance: none;
+  padding-inline-end: var(--rag-space-10);
+  cursor: pointer;
+}
+
+.select:disabled {
+  cursor: not-allowed;
+}
+
+.chevron {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--rag-space-4);
+  translate: 0 -50%;
+  inline-size: 1rem;
+  block-size: 1rem;
+  color: var(--color-text-subtle);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.select:focus + .chevron {
+  color: var(--color-accent);
+}

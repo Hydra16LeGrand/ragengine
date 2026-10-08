@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#f6f5f2" />
+    <meta
+      name="description"
+      content="__APP_NAME__ — système RAG d'entreprise souverain : ingestion, precheck interactif, retrieval hybride."
+    />
+    <title>__APP_NAME__</title>
+    <script>
+      /*
+       * Amorçage du thème AVANT le premier paint : sans ce script, la page
+       * s'afficherait en clair puis basculerait en sombre (flash).
+       * Contrat dupliqué depuis `src/design/theme.tsx` — il doit s'exécuter
+       * avant le bundle, donc il ne peut pas être importé.
+       */
+      (function () {
+        try {
+          var stored = window.localStorage.getItem('ragengine.theme');
+          var preference =
+            stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+          var resolved =
+            preference === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+              : preference;
+          document.documentElement.setAttribute('data-theme', resolved);
+        } catch (error) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,214 @@
+/* =============================================================================
+   Vue globale des évaluations — agrégat cross-KB (Phase 12, Étape 5).
+   Réutilise la grammaire de `EvaluationsPanel` (barres de score, liste à
+   séparateurs pleine largeur) pour qu'un même run de mesure se lise pareil,
+   qu'il soit consulté par base ou dans l'ensemble.
+   ========================================================================== */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  color: var(--color-danger);
+}
+
+/* --- Carte agrégée --------------------------------------------------------- */
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rag-space-6);
+  padding-block-end: var(--rag-space-5);
+  border-block-end: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+}
+
+.statValue {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xl);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.meters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rag-space-6);
+  padding-block-start: var(--rag-space-5);
+}
+
+/* --- Détail par base --------------------------------------------------------- */
+
+/* `Card flush` (cf. `Card.tsx`) retire tout le rembourrage de la carte pour
+   que `.list` puisse aller d'un bord à l'autre — mais un `CardHeader` posé
+   directement dedans en hérite aussi, et se retrouve collé aux bords sans
+   ce correctif (`.item`, plus bas, a lui son propre rembourrage horizontal :
+   seul l'en-tête en manquait). */
+.tableHeader {
+  padding: var(--rag-space-6) var(--rag-space-6) var(--rag-space-5);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--rag-space-4) var(--rag-space-6);
+  padding: var(--rag-space-4) var(--rag-space-6);
+}
+
+.item + .item {
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.itemNameLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+  flex: 1 1 12rem;
+  text-decoration: none;
+}
+
+.itemNameLink:hover .itemName {
+  color: var(--color-accent);
+}
+
+.itemName {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  transition: color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.itemMeta {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.itemMeters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rag-space-5);
+  flex: none;
+}
+
+/* --- Barres de score, dupliquées depuis `EvaluationsPanel.module.css` ------ */
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  inline-size: 9rem;
+}
+
+.meterCompact {
+  inline-size: 7.5rem;
+}
+
+.meterHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-2);
+}
+
+.meterLabel {
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.meterValue {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.meterEmpty {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+
+.meterTrack {
+  display: block;
+  block-size: 0.3125rem;
+  border-radius: var(--rag-radius-full);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.meterFill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--rag-duration-slow) var(--rag-ease-out);
+}
+
+.success {
+  color: var(--color-success);
+}
+
+.warning {
+  color: var(--color-warning);
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.meterFill.success {
+  background: var(--color-success);
+}
+
+.meterFill.warning {
+  background: var(--color-warning);
+}
+
+.meterFill.danger {
+  background: var(--color-danger);
+}
+
+/* --- Étroit -------------------------------------------------------------- */
+
+@media (max-width: 47.99rem) {
+  .item {
+    align-items: flex-start;
+  }
+
+  .itemMeters {
+    inline-size: 100%;
+    justify-content: space-between;
+  }
+
+  .meter,
+  .meterCompact {
+    inline-size: calc(50% - var(--rag-space-3));
+  }
+}

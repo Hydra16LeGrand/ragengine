@@ -1,0 +1,365 @@
+# RAGEngine — moteur d'ingestion RAGFlow (Phase 4, ADR-001 / ADR-012).
+#
+# Usage (depuis la racine du dépôt) :
+#   docker compose --env-file .env -f docker/docker-compose.ragflow.yml up -d
+#   ../venv/bin/python scripts/bootstrap_ragflow.py        # une fois, après le `up`
+#
+# PRÉREQUIS 1 — la stack cœur doit tourner : c'est elle qui crée le réseau
+# `ragengine`, consommé ici en `external` :
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d
+#
+# PRÉREQUIS 2 — la stack GPU doit tourner : RAGFlow n'embarque aucun modèle
+# depuis la v0.22 (variante slim, la seule distribuée), il consomme les services
+# `inference-embedding`/`inference-reranker` (TEI, ADR-051) pour l'embedding et le rerank :
+#   docker compose --env-file .env -f docker/docker-compose.gpu.yml up -d
+#
+# Ce fichier s'utilise SEUL, pas fusionné avec docker-compose.yml : il porte son
+# propre nom de projet (`ragflow`, cohérent avec `ragengine`/`ragengine-gpu`).
+# Fusionner les deux écraserait le nom de projet du cœur et détacherait ses
+# conteneurs.
+#
+# ─── Origine du fichier ──────────────────────────────────────────────────────
+# Dérivé des fichiers officiels de `infiniflow/ragflow`, **tag v0.26.4**
+# (docker/docker-compose.yml + docker/docker-compose-base.yml + docker/.env),
+# clonés et lus, jamais écrits de mémoire. Écarts assumés, chacun motivé
+# ci-dessous : variante ES + CPU seule (donc plus de `profiles`), dépendances
+# renommées (§2), bind-mounts supprimés (§1), ports réduits (§3), valeurs de
+# `.env` reportées en `environment:` explicites plutôt qu'un `env_file` RAGFlow
+# séparé — la configuration de ce dépôt vit dans un seul `.env` (CONTRIBUTING.md §6).
+#
+# ─── §1. Tag épinglé, et AUCUN bind-mount de `entrypoint.sh` ─────────────────
+# Piège vécu en audit (docs/ingestion-engine-architecture.md §6) : le dépôt
+# RAGFlow bind-monte `docker/entrypoint.sh` et `docker/service_conf.yaml.template`
+# DANS l'image. Sur `main`, le script monté référence un outil de migration
+# absent de l'image publiée correspondante → boucle de redémarrage silencieuse
+# (`exit 127`), sans rapport lisible avec la cause.
+# Vérifié ici : à v0.26.4, les deux fichiers du dépôt sont **octet pour octet**
+# ceux de l'image (md5 `d6fb7a3c4e4b402d6cda515b2be840af` pour `entrypoint.sh`,
+# `abfad92e715980c7f42227b1c8bf27b8` pour `service_conf.yaml.template`). Les
+# monter n'apporte donc rien et rouvre la divergence au moindre écart de
+# version : on ne les monte pas, l'image se sert de ses propres copies. C'est
+# aussi ce qui rend ce fichier autonome — aucun clone RAGFlow requis à l'exécution.
+# `init.sql` (bind-monté par l'amont pour créer la base) est remplacé par
+# `MYSQL_DATABASE`, que l'image mysql honore nativement : même effet, zéro fichier.
+#
+# ─── §2. Collision de noms DNS — la vraie raison du renommage ────────────────
+# `ragflow-cpu` est attaché à DEUX réseaux (le sien et `ragengine`) : c'est ce qui
+# lui permet de joindre `inference-embedding`/`inference-reranker` nativement, et à l'API/aux workers
+# RAGEngine de joindre `ragflow-cpu:9380` tout aussi nativement, sans le moindre
+# relais TCP. Mais un conteneur multi-réseaux résout les noms sur TOUS ses
+# réseaux : un service `redis` interne à RAGFlow serait ambigu avec le `redis` de
+# la stack cœur, et l'audit a vu RAGFlow s'authentifier contre le mauvais Redis
+# puis mourir. Les dépendances portent donc un nom **préfixé et unique**
+# (`ragflow-mysql`, `ragflow-valkey`, `ragflow-minio`, `ragflow-es`), désigné à
+# RAGFlow par ses variables `*_HOST`. Elles restent sur le seul réseau interne :
+# RAGEngine ne les nomme jamais.
+#
+# ─── §3. Ports — décalés et réduits au strict nécessaire ────────────────────
+# Déjà pris sur l'hôte : 8000 (API), 5433 (PostgreSQL), 6380 (Redis), 9997/9998
+# (TEI, embedding et reranker). Ports RAGFlow d'origine (80/443/9380/9381/9382/9383/9384,
+# MySQL 3306, MinIO 9000/9001, Redis 6379, ES 1200) tous décalés ou non publiés.
+# Seuls deux ports sortent sur l'hôte, en boucle locale : l'API HTTP (pour
+# `scripts/bootstrap_ragflow.py` et le diagnostic) et l'interface web. Les
+# dépendances ne sont pas publiées du tout — elles sont l'affaire privée de
+# RAGFlow, et ne pas les publier supprime toute collision de port par
+# construction. Ni MCP (9382) ni le serveur Go (9383/9384) ne sont activés
+# (`API_PROXY_SCHEME=python`), donc ni exposés.
+
+name: ${RAGFLOW_PROJECT_NAME:-ragflow}
+
+# Rotation de logs par défaut — cf. docker-compose.yml pour l'incident qui l'a
+# motivée (2026-09-11, `langfuse-clickhouse`, 138 Go). Même plafond partout.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${RAGENGINE_LOG_MAX_SIZE:-10m}"
+    max-file: "${RAGENGINE_LOG_MAX_FILE:-3}"
+
+x-ragflow-storage: &ragflow-storage
+  # Identifiants des briques internes de RAGFlow. Elles ne sont joignables que
+  # depuis son réseau privé (aucun port publié, §3) ; ces valeurs restent
+  # surchargeables par `.env` pour un déploiement qui les exposerait.
+  MYSQL_HOST: ragflow-mysql
+  MYSQL_PORT: "3306"
+  MYSQL_DBNAME: rag_flow
+  MYSQL_PASSWORD: ${RAGFLOW_MYSQL_PASSWORD:-infini_rag_flow}
+  MINIO_HOST: ragflow-minio
+  MINIO_USER: ${RAGFLOW_MINIO_USER:-rag_flow}
+  MINIO_PASSWORD: ${RAGFLOW_MINIO_PASSWORD:-infini_rag_flow}
+  ES_HOST: ragflow-es
+  ES_USER: elastic
+  ELASTIC_PASSWORD: ${RAGFLOW_ELASTIC_PASSWORD:-infini_rag_flow}
+  REDIS_HOST: ragflow-valkey
+  REDIS_PASSWORD: ${RAGFLOW_REDIS_PASSWORD:-infini_rag_flow}
+
+services:
+  # ─── Doc engine : Elasticsearch ────────────────────────────────────────────
+  # Le stockage hybride (dense + BM25) est délégué à RAGFlow (ADR-001) : c'est
+  # ici qu'il vit. Infinity reste l'alternative amont, non testée en audit
+  # (docs/ingestion-engine-architecture.md §7) — ne pas y basculer sans audit.
+  ragflow-es:
+    image: elasticsearch:8.11.3
+    container_name: ${RAGFLOW_PROJECT_NAME:-ragflow}-es
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      - node.name=ragflow-es
+      - ELASTIC_PASSWORD=${RAGFLOW_ELASTIC_PASSWORD:-infini_rag_flow}
+      - bootstrap.memory_lock=false
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - cluster.routing.allocation.disk.watermark.low=5gb
+      - cluster.routing.allocation.disk.watermark.high=3gb
+      - cluster.routing.allocation.disk.watermark.flood_stage=2gb
+      - TZ=${TZ:-Europe/Paris}
+    volumes:
+      - esdata01:/usr/share/elasticsearch/data
+    # Repris tel quel de l'amont : l'ACL du /tmp de l'image officielle refuse
+    # l'écriture à l'utilisateur `elasticsearch`, dont l'entrypoint a besoin.
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+    # L'amont plafonne à 7,5 Gio. Ramené à 4 Gio : la JVM dimensionne son tas à
+    # la moitié du plafond du conteneur, et le budget RAM de la machine de
+    # développement est de 32 Go pour TOUTE la stack (CONTRIBUTING.md §2).
+    mem_limit: ${RAGFLOW_ES_MEM_LIMIT:-4g}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    networks: [ragflow-internal]
+
+  # ─── Métadonnées RAGFlow (comptes, datasets, documents, tâches) ────────────
+  # Sans rapport avec le PostgreSQL de RAGEngine : les métadonnées applicatives
+  # RAGEngine ne vivent JAMAIS ici (CONTRIBUTING.md §3.5).
+  ragflow-mysql:
+    image: mysql:8.0.39
+    container_name: ${RAGFLOW_PROJECT_NAME:-ragflow}-mysql
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      MYSQL_ROOT_PASSWORD: ${RAGFLOW_MYSQL_PASSWORD:-infini_rag_flow}
+      # Remplace le bind-mount de `docker/init.sql` de l'amont (§1) : ce fichier
+      # ne contient que la création de la base, que l'image sait faire seule.
+      MYSQL_DATABASE: rag_flow
+      TZ: ${TZ:-Europe/Paris}
+    command:
+      --max_connections=1000
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --tls_version="TLSv1.2,TLSv1.3"
+      --binlog_expire_logs_seconds=604800
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        ["CMD", "mysqladmin", "ping", "-uroot", "-p${RAGFLOW_MYSQL_PASSWORD:-infini_rag_flow}"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    networks: [ragflow-internal]
+
+  # ─── Stockage objet des fichiers téléversés ────────────────────────────────
+  ragflow-minio:
+    image: pgsty/minio:RELEASE.2026-03-25T00-00-00Z
+    container_name: ${RAGFLOW_PROJECT_NAME:-ragflow}-minio
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["server", "--console-address", ":9001", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${RAGFLOW_MINIO_USER:-rag_flow}
+      MINIO_ROOT_PASSWORD: ${RAGFLOW_MINIO_PASSWORD:-infini_rag_flow}
+      TZ: ${TZ:-Europe/Paris}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    networks: [ragflow-internal]
+
+  # ─── File de tâches interne de RAGFlow ─────────────────────────────────────
+  # Nom `ragflow-valkey`, PAS `redis` : c'est exactement la collision qui a fait
+  # échouer l'audit (§2). Rien à voir avec le Redis broker Celery de RAGEngine.
+  ragflow-valkey:
+    image: valkey/valkey:8
+    container_name: ${RAGFLOW_PROJECT_NAME:-ragflow}-valkey
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - redis-server
+      - --requirepass
+      - ${RAGFLOW_REDIS_PASSWORD:-infini_rag_flow}
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${RAGFLOW_REDIS_PASSWORD:-infini_rag_flow}", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    networks: [ragflow-internal]
+
+  # ─── Le moteur lui-même — seul conteneur à voir les deux réseaux (§2) ──────
+  # Variante slim : depuis la v0.22 c'est la seule image distribuée, elle
+  # n'embarque aucun modèle. Le profil TEI de l'amont reste désactivé — nos
+  # modèles sont ceux de `inference` (ADR-011), enregistrés auprès de RAGFlow
+  # par `scripts/bootstrap_ragflow.py`.
+  ragflow-cpu:
+    # Image dérivée, trois écarts — cf. l'en-tête de `ragflow-cpu.Dockerfile`,
+    # qui les énumère et dit pourquoi :
+    #   - le modèle de reconnaissance OCR de DeepDOC, remplacé par la variante
+    #     PaddleOCR **latine**, dont le dictionnaire contient les accents
+    #     français que celui de l'image officielle n'a pas (ADR-030) ;
+    #   - le prompt de description des figures, réécrit pour extraire
+    #     l'information au lieu de décrire l'apparence, et pour répondre dans la
+    #     langue du document (ADR-035) ;
+    #   - le paquet `docling` et ses modèles, figés au build en CPU strict, là
+    #     où l'amont les téléchargerait au démarrage du conteneur (ADR-043).
+    # Le tag ne nomme donc plus une divergence : `-ragengine.<n>` est le numéro
+    # de révision de l'ensemble des écarts posés sur `v0.26.4`.
+    build:
+      context: .
+      dockerfile: ragflow-cpu.Dockerfile
+    image: ragengine/ragflow-cpu:v0.26.4-ragengine.2
+    container_name: ${RAGFLOW_PROJECT_NAME:-ragflow}-cpu
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --enable-adminserver
+      # Crée/migre les tables de fournisseurs de modèles, sans quoi
+      # `PUT /api/v1/providers` échoue : c'est la commande de l'amont, conservée.
+      - --init-model-provider-tables
+    environment:
+      <<: *ragflow-storage
+      DOC_ENGINE: elasticsearch
+      DEVICE: cpu
+      # Serveur Python pur : ni MCP (9382) ni serveur Go (9383/9384) démarrés.
+      API_PROXY_SCHEME: python
+      # Le compte de service est créé une fois par `bootstrap_ragflow.py`, qui a
+      # besoin de l'inscription ouverte. RAGFlow n'écoute que sur la boucle
+      # locale et le réseau Docker privé (§3), comme le reste de la stack.
+      REGISTER_ENABLED: "1"
+      # Refuse toute connexion à une base sur un hôte privé depuis l'UI ; sans
+      # objet ici, gardé au défaut sûr de l'amont.
+      ALLOW_ANY_HOST: "0"
+      DOC_BULK_SIZE: ${RAGFLOW_DOC_BULK_SIZE:-4}
+      # Lots d'embedding vus par RAGFlow. Distinct d'`EMBEDDING_BATCH_SIZE` de
+      # RAGEngine (`Settings.embedding_batch_size`) : les deux appellent le même
+      # service TEI d'embedding, mais par des chemins indépendants — un seul nom
+      # pour deux réglages masquerait qu'ils se règlent séparément.
+      EMBEDDING_BATCH_SIZE: ${RAGFLOW_EMBEDDING_BATCH_SIZE:-16}
+      THREAD_POOL_MAX_WORKERS: ${RAGFLOW_THREAD_POOL_MAX_WORKERS:-128}
+      # Requis par l'amont pour le support pptx (ICU absent de l'image).
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
+      # Drapeau d'INSTALLATION, pas de fonctionnalité : `ensure_docling()` de
+      # l'`entrypoint.sh` amont ne fait que `uv pip install docling` au
+      # démarrage quand il vaut `"true"`. Docling est déjà dans l'image
+      # (ADR-043) : le laisser à `"false"` évite un téléchargement de ~1,5 Go
+      # depuis un miroir chinois à chaque création de conteneur. Le moteur voit
+      # Docling par `check_installation()`, qui regarde le paquet importable —
+      # pas cette variable.
+      USE_DOCLING: "false"
+      # Vide = paquet local. La variante sidecar `docling-serve` a été mesurée
+      # et écartée (ADR-043) : elle perd les tableaux et 100 % des positions de
+      # fragment. Renseigner cette variable bascule silencieusement dessus,
+      # `DoclingParser._effective_server_url()` lui donnant la priorité sur le
+      # paquet local — d'où la déclaration explicite plutôt que l'absence.
+      DOCLING_SERVER_URL: ""
+      DISABLE_PASSWORD_LOGIN: "false"
+      # Rendu tel quel dans `service_conf.yaml` même profil TEI désactivé : la
+      # laisser vide produirait une URL `http://:80` dans la config générée.
+      TEI_HOST: tei
+      TZ: ${TZ:-Europe/Paris}
+    depends_on:
+      # L'amont n'attend que mysql ; attendre les quatre évite un premier
+      # démarrage bruyant (RAGFlow réessaie, mais en journalisant des erreurs).
+      ragflow-mysql:
+        condition: service_healthy
+      ragflow-es:
+        condition: service_healthy
+      ragflow-minio:
+        condition: service_healthy
+      ragflow-valkey:
+        condition: service_healthy
+    # Healthcheck de DISPONIBILITÉ RÉELLE, pas de simple vivacité : `healthz`
+    # vérifie MySQL, la file interne, le doc engine ET le stockage objet, et
+    # répond 500 si l'un des quatre manque (vérifié en audit). Un serveur HTTP
+    # debout mais sans doc engine répondrait 200 sur `/system/ping` tout en étant
+    # inutilisable — ce serait un faux vert.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9380/api/v1/system/healthz >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      # Généreux : premier démarrage = migrations MySQL + init des tables de
+      # fournisseurs de modèles avant que l'API ne réponde.
+      start_period: 300s
+    networks:
+      # LES DEUX réseaux, et lui seul (§2).
+      ragflow-internal: {}
+      ragengine:
+        # `ragengine` est la clé Compose locale à ce fichier (cf. bloc `networks`
+        # en pied de fichier), pas le nom Docker réel du réseau rejoint — celui-ci
+        # est piloté par RAGENGINE_PROJECT_NAME (le plan de déploiement interne, Phase B),
+        # pour suivre le même réseau que la stack cœur de CE même environnement.
+        aliases:
+          # `ragflow-cpu` est le nom canonique (`.env.example`, défaut de
+          # `Settings.ragflow_base_url`). L'alias `ragflow` couvre les `.env`
+          # déjà déployés qui portent l'ancienne valeur `http://ragflow:9380` :
+          # une faute de nom se solderait par un échec DNS opaque au premier
+          # appel du moteur, pas par un message clair.
+          - ragflow
+    # Repris de l'amont (exposition de l'IP de l'hôte pour Prometheus).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # Boucle locale uniquement, même politique que la stack cœur : RAGFlow
+      # porte ses propres comptes, mais l'exposer sur le LAN donnerait accès à
+      # tout le corpus indexé.
+      # API HTTP — c'est cette URL que consomme `scripts/bootstrap_ragflow.py`
+      # depuis l'hôte. Depuis les conteneurs RAGEngine, c'est `ragflow-cpu:9380`
+      # (`RAGFLOW_BASE_URL`) qui fait foi, sans passer par l'hôte.
+      - "127.0.0.1:${RAGENGINE_RAGFLOW_HOST_PORT:-9390}:9380"
+      # Interface web RAGFlow (administration du moteur, diagnostic humain).
+      - "127.0.0.1:${RAGENGINE_RAGFLOW_WEB_HOST_PORT:-9480}:80"
+
+networks:
+  # Réseau privé de RAGFlow : ses quatre dépendances y vivent, invisibles de
+  # RAGEngine. Nom paramétré par RAGFLOW_PROJECT_NAME (défaut inchangé,
+  # "ragflow-internal", exactement ce qui tourne aujourd'hui) — sans ça, un
+  # second déploiement RAGFlow (prod) rejoindrait CE MÊME réseau que dev et
+  # collisionnerait sur l'alias DNS de service `ragflow-mysql` (docs/
+  # le plan de déploiement interne, Phase B — même raisonnement que le réseau `ragengine` de
+  # la stack cœur).
+  ragflow-internal:
+    name: ${RAGFLOW_PROJECT_NAME:-ragflow}-internal
+    driver: bridge
+  # Créé par la stack cœur (PRÉREQUIS 1), jamais par ce fichier. Piloté par
+  # RAGENGINE_PROJECT_NAME (et non RAGFLOW_PROJECT_NAME) : c'est le réseau de
+  # la stack cœur de l'environnement visé, pas celui de RAGFlow lui-même — les
+  # deux variables doivent viser le même environnement (.env / .env.prod).
+  ragengine:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+    external: true
+
+volumes:
+  esdata01:
+    name: ${RAGFLOW_PROJECT_NAME:-ragflow}_esdata01
+  mysql_data:
+    name: ${RAGFLOW_PROJECT_NAME:-ragflow}_mysql_data
+  minio_data:
+    name: ${RAGFLOW_PROJECT_NAME:-ragflow}_minio_data
+  redis_data:
+    name: ${RAGFLOW_PROJECT_NAME:-ragflow}_redis_data

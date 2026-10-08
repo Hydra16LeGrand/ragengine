@@ -1,0 +1,38 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-6);
+}
+
+.tabs {
+  display: flex;
+  /* Trois onglets + leur intervalle dépassent la largeur utile à 360px : sans
+     repli, la rangée forcerait un défilement horizontal de toute la coquille
+     (passe d'espacements mobile, 2026-09-17). Un simple retour à la ligne
+     suffit, aucun scroll n'est nécessaire. */
+  flex-wrap: wrap;
+  gap: var(--rag-space-5);
+  border-block-end: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.tab {
+  padding-block: var(--rag-space-3);
+  border-block-end: var(--rag-border-thick) solid transparent;
+  color: var(--color-text-subtle);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  text-decoration: none;
+  transition:
+    color var(--rag-duration-fast) var(--rag-ease-standard),
+    border-color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tabActive {
+  color: var(--color-accent);
+  border-block-end-color: var(--color-accent-solid);
+}

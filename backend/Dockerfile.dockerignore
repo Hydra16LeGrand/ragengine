@@ -1,0 +1,60 @@
+# Exclusions du contexte de build de l'image backend.
+#
+# Le nom n'est pas une erreur : le contexte de build est la RACINE du dépôt
+# (`context: ..` + `dockerfile: backend/Dockerfile` dans docker-compose.yml), et
+# BuildKit cherche `<chemin-du-Dockerfile>.dockerignore` avant le `.dockerignore`
+# du contexte. Un `backend/.dockerignore` ne serait jamais lu. Ce mécanisme par
+# Dockerfile est aussi ce qui permettra au futur `frontend/Dockerfile` d'avoir
+# ses propres exclusions sans interférer avec celles-ci.
+#
+# Sans ce fichier, les ~190 Mo de `venv/` partent dans le contexte de build.
+#
+# Les motifs couvrent les deux racines de contexte possibles : la racine du
+# dépôt (`context: ..` dans docker/docker-compose.yml) et `backend/`.
+
+# --- Environnements virtuels et secrets ---
+venv/
+.venv/
+backend/venv/
+backend/.venv/
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Tests et outillage de développement (hors image) ---
+tests/
+backend/tests/
+scripts/
+
+# --- Autres composants du dépôt, non nécessaires à l'image backend ---
+frontend/
+docker/
+docs/
+.git/
+.github/
+.claude/
+*.md
+
+# --- Modèles et artefacts lourds ---
+models/
+**/*.onnx
+**/*.safetensors
+**/*.gguf
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+*.log

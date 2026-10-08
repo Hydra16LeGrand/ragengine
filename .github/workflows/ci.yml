@@ -1,0 +1,101 @@
+name: CI
+
+# Runs on GitHub-hosted runners only. Never switch this workflow to a self-hosted
+# runner on a public repository: a pull request from anyone would execute its code
+# on that machine. No deployment happens from CI.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      # Throwaway CI containers. The credentials are the development defaults of
+      # .env.example, which the test suite falls back to when no .env exists.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ragengine
+          POSTGRES_USER: ragengine
+          POSTGRES_PASSWORD: change-me
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U ragengine"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff check app tests
+      - run: uv run ruff format --check app tests
+      - run: uv run mypy app
+      # `live_ragflow` drives a real RAGFlow + GPU inference stack: not available in CI.
+      - run: uv run pytest -q -m "not live_ragflow"
+
+  frontend:
+    name: Frontend — lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    # The gitleaks action lists the commits of a pull request through the API.
+    permissions:
+      contents: read
+      pull-requests: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

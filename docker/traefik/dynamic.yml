@@ -1,0 +1,110 @@
+# Configuration dynamique STATIQUE de Traefik (le plan de déploiement interne, Phase A —
+# cf. l'en-tête de ../docker-compose.traefik.yml pour pourquoi un fichier et
+# pas le provider Docker/labels). Monté en lecture seule dans le conteneur
+# `traefik`, rechargé à chaud par Traefik si ce fichier change
+# (`--providers.file.watch=true`).
+#
+# `api` et `frontend` sont les noms de SERVICE Compose (docker-compose.yml /
+# docker-compose.traefik.yml), résolus par le DNS embarqué de Docker sur le
+# réseau applicatif partagé — stables quel que soit RAGENGINE_PROJECT_NAME
+# (qui ne modifie que `container_name`, jamais le nom de service).
+#
+# Routage par CHEMIN, pas par hôte : un seul couple (frontend, api) tourne
+# derrière ce Traefik (un Traefik par environnement, comme docker-compose.
+# gpu.yml/docker-compose.ragflow.yml) — router plusieurs environnements
+# derrière un Traefik unique par nom d'hôte redemanderait un vrai mécanisme
+# de sélection, pas ce fichier statique.
+#
+# ─── Durcissement du bord (ADR-052) ─────────────────────────────────────────
+# Tout routeur porte `security-headers`. Tout chemin `/api` porte une borne de
+# taille de corps, avec une seule exception contrôlée, le chat en flux :
+#
+# * Le middleware `buffering` met en tampon la RÉPONSE entière, pas seulement
+#   la requête — vérifié sur Traefik v3.5.6 : un flux SSE traversant ce
+#   middleware arrive d'un bloc à la fin (4 évènements espacés d'1 s, reçus
+#   tous à t=4 s). Les deux routes de chat (`text/event-stream`) ne peuvent
+#   donc pas le porter.
+# * Leur corps reste borné AU PROXY par la règle elle-même : `api-chat-stream`
+#   n'accepte qu'un `Content-Length` d'au plus 6 chiffres (< 1 000 000 octets,
+#   la même borne que `body-limit-api`). Le serveur Go ne lit jamais plus de
+#   `Content-Length` octets comme corps : la borne ne se contourne pas. Une
+#   requête plus grosse, ou sans `Content-Length` (corps `chunked`), retombe
+#   sur le routeur `api` :
+#   `413` si elle dépasse, sinon réponse servie — mais en un bloc. Navigateurs
+#   et cloudflared (qui recopie le `Content-Length` de l'edge) en envoient un.
+http:
+  routers:
+    api-upload:
+      rule: "Method(`POST`) && PathRegexp(`^/api/v1/knowledge-bases/[^/]+/documents/ingest$`)"
+      entryPoints: [web]
+      service: api
+      middlewares: [security-headers, body-limit-upload]
+      priority: 30
+    api-chat-stream:
+      rule: "Method(`POST`) && PathRegexp(`^/api/v1/[a-z-]+(/[^/]+)?/chat$`) && HeaderRegexp(`Content-Length`, `^[0-9]{1,6}$`)"
+      entryPoints: [web]
+      service: api
+      middlewares: [security-headers]
+      priority: 30
+    api:
+      rule: "PathPrefix(`/api`)"
+      entryPoints: [web]
+      service: api
+      middlewares: [security-headers, body-limit-api]
+      priority: 10
+    frontend:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [web]
+      service: frontend
+      middlewares: [security-headers]
+      priority: 1
+
+  middlewares:
+    # Mêmes valeurs que backend/app/core/security_headers.py (comparées par
+    # backend/tests/test_security_headers.py). Traefik ÉCRASE l'en-tête posé par
+    # l'API : jamais deux valeurs contradictoires sur une même réponse.
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: "no-referrer"
+        # `frame-ancestors` seul : pas de `script-src`/`default-src` tant qu'une
+        # politique n'a pas été éprouvée sur tous les écrans (ADR-052).
+        contentSecurityPolicy: "frame-ancestors 'none'"
+        # Un an, sans `includeSubDomains` ni `preload` (ADR-052). Forcé : le
+        # tunnel arrive ici en clair, et un navigateur ignore HSTS reçu en clair
+        # (RFC 6797 §8.1) — seule la réponse HTTPS de l'edge l'engage.
+        stsSeconds: 31536000
+        forceSTSHeader: true
+        customResponseHeaders:
+          X-Permitted-Cross-Domain-Policies: "none"
+
+    # Corps JSON : le plus gros légitime est l'historique d'une conversation
+    # (`POST .../chat`), plafonné par l'application à 40 messages et 64 000
+    # caractères (ADR-053) — au pire ~400 Ko en JSON (6 octets par caractère
+    # échappé). 1 Mo laisse le 422 applicatif précéder toujours le 413 du proxy.
+    # `memRequestBodyBytes` : au-delà de 256 Kio, tampon sur disque.
+    body-limit-api:
+      buffering:
+        maxRequestBodyBytes: 1000000
+        memRequestBodyBytes: 262144
+
+    # Upload : plafond applicatif (RAGENGINE_UPLOAD_MAX_BYTES, 90 Mio — pas 100 :
+    # le plan Cloudflare gratuit coupe déjà un corps de requête à ~100 000 000
+    # octets décimaux, ADR-066) + 1 Mio d'enveloppe multipart (frontières,
+    # en-têtes de partie, `name`, `theme`). Relever le plafond applicatif
+    # impose de relever celui-ci.
+    body-limit-upload:
+      buffering:
+        maxRequestBodyBytes: 95420416
+        memRequestBodyBytes: 1048576
+
+  services:
+    api:
+      loadBalancer:
+        servers:
+          - url: "http://api:8000"
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:8080"

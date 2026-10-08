@@ -1,0 +1,17 @@
+[Unit]
+Description=Sauvegarde RAGEngine production (PostgreSQL + fichiers d'origine des documents)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_ROOT__
+# Deux commandes séquentielles : systemd s'arrête à la première en échec (code
+# de sortie non nul), le service entier est alors marqué "failed" — visible
+# par `systemctl --user status ragengine-backup.service` sans aller fouiller
+# les journaux (ADR-067). Chaque script journalise aussi sa propre ligne dans
+# ~/Sauvegardes/ragengine/backup.log (ou BACKUP_DIR si redéfini).
+ExecStart=__REPO_ROOT__/scripts/backup-postgres.sh __REPO_ROOT__/.env.prod.local
+ExecStart=__REPO_ROOT__/scripts/backup-documents.sh __REPO_ROOT__/.env.prod.local
+StandardOutput=journal
+StandardError=journal

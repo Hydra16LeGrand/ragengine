@@ -1,0 +1,66 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--rag-space-5);
+  padding: var(--rag-space-16) var(--rag-space-6);
+  text-align: center;
+}
+
+.compact {
+  padding: var(--rag-space-10) var(--rag-space-4);
+  gap: var(--rag-space-4);
+}
+
+.illustration {
+  inline-size: 12rem;
+  max-inline-size: 100%;
+  block-size: auto;
+  stroke-width: 1.75;
+}
+
+.compact .illustration {
+  inline-size: 9rem;
+}
+
+/* Deux niveaux de lecture : la structure recule, l'accent guide l'œil. */
+.structure {
+  stroke: var(--color-border-strong);
+}
+
+.slot {
+  stroke: var(--color-border);
+}
+
+.accent {
+  stroke: var(--color-accent);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  align-items: center;
+}
+
+.title {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-md);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-tight);
+  color: var(--color-text);
+}
+
+.description {
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-sm);
+  max-inline-size: 46ch;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+}

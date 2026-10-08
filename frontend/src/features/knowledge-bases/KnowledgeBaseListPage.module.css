@@ -1,0 +1,360 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+/* Lien d'action principal : même matière que `Button variant="primary"`, mais
+   c'est une vraie navigation — donc une vraie balise `<a>`. */
+.primaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rag-space-2);
+  block-size: 2.5rem;
+  padding-inline: var(--rag-space-5);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  letter-spacing: var(--rag-tracking-tight);
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.primaryLink:hover {
+  background-color: var(--color-accent-solid-hover);
+  color: var(--color-accent-contrast);
+}
+
+.primaryLink svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  stroke-width: 1.75;
+}
+
+/* Remplace le lien de création quand le quota d'essai est atteint :
+   même emplacement, mais un texte explicatif plutôt qu'une action qui mènerait
+   à un formulaire condamné à échouer à la soumission. */
+.quotaReached {
+  max-inline-size: 22rem;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  text-align: end;
+}
+
+/* --- Parcours en trois étapes (état vide, première utilisation) ----------- */
+.onboardingSteps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--rag-space-5) var(--rag-space-6);
+  max-inline-size: 38rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboardingStep {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex: 1 1 13rem;
+  max-inline-size: 16rem;
+  text-align: start;
+}
+
+.onboardingStepNumber {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--rag-radius-full);
+  border: var(--rag-border-thin) solid var(--color-accent-border);
+  background-color: var(--color-accent-surface);
+  color: var(--color-accent);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.onboardingStepText {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- Bandeau visiteur anonyme --------------------------------------------- */
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-5);
+  flex-wrap: wrap;
+  padding: var(--rag-space-4) var(--rag-space-5);
+}
+
+.noticeText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.noticeTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.noticeDescription {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  max-inline-size: 70ch;
+}
+
+.noticeAction {
+  flex: none;
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-accent);
+  text-decoration: none;
+  border-block-end: var(--rag-border-thin) solid currentcolor;
+}
+
+/* --- Erreur --------------------------------------------------------------- */
+.errorTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-danger);
+}
+
+.errorDetail {
+  margin-block-start: var(--rag-space-1);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- Tableau -------------------------------------------------------------- */
+.table {
+  overflow: hidden;
+}
+
+/* Une seule définition de grille, partagée par l'en-tête et les lignes :
+   les colonnes ne peuvent pas se désaligner. */
+.columns,
+.rowLink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7rem 11rem 6rem 7rem;
+  gap: var(--rag-space-5);
+  align-items: center;
+}
+
+.columns {
+  padding: var(--rag-space-3) var(--rag-space-6);
+  border-block-end: var(--rag-border-thin) solid var(--color-border);
+  background-color: var(--color-surface-sunken);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.numeric {
+  text-align: end;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row + .row {
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.rowLink {
+  position: relative;
+  padding: var(--rag-space-5) var(--rag-space-6);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+/* Filet d'accent au survol : le repère de ligne active, sans déplacer le texte. */
+.rowLink::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background-color: var(--color-accent);
+  scale: 1 0;
+  transition: scale var(--rag-duration-base) var(--rag-ease-out);
+}
+
+a.rowLink:hover {
+  background-color: var(--color-surface-hover);
+  color: inherit;
+}
+
+a.rowLink:hover::before {
+  scale: 1 1;
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+}
+
+.name {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-base);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-tight);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slug {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin-block-start: var(--rag-space-1);
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-snug);
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+}
+
+.models {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.modelLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+}
+
+.modelRole {
+  flex: none;
+  inline-size: 1.15rem;
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.modelName {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.countValue {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-md);
+  font-weight: var(--rag-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+/* Redondant tant que l'en-tête de colonne est visible : on ne le montre que
+   dans le repli empilé, où les en-têtes disparaissent. */
+.countLabel {
+  display: none;
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.updated {
+  text-align: end;
+  font-size: var(--rag-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+/* --- Repli : sous 64rem, la grille redevient un empilement lisible -------- */
+@media (max-width: 64rem) {
+  .columns {
+    display: none;
+  }
+
+  .rowLink {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--rag-space-3) var(--rag-space-4);
+  }
+
+  .identity {
+    grid-column: 1 / -1;
+  }
+
+  .models {
+    grid-column: 1 / -1;
+  }
+
+  .count {
+    align-items: baseline;
+    flex-direction: row;
+    align-self: center;
+    gap: var(--rag-space-2);
+  }
+
+  .countValue {
+    font-size: var(--rag-text-sm);
+  }
+
+  .countLabel {
+    display: inline;
+  }
+}

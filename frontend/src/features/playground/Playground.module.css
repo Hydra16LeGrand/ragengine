@@ -1,0 +1,703 @@
+/* =============================================================================
+   Playground (Schéma B) — recherche granulaire et chat cité.
+   ========================================================================== */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--rag-space-5);
+  align-items: start;
+}
+
+.main {
+  min-inline-size: 0;
+}
+
+/* Le rail de réglages reste sous les yeux pendant qu'on parcourt les
+   résultats : c'est là qu'on ajuste après avoir lu. */
+.aside {
+  position: sticky;
+  inset-block-start: calc(var(--rag-header-height) + var(--rag-space-5));
+  min-inline-size: 0;
+}
+
+@media (max-width: 62rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .aside {
+    position: static;
+  }
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-1);
+  color: var(--color-text-subtle);
+  font-size: var(--rag-text-xs);
+  text-decoration: none;
+  transition: color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.backLink:hover {
+  color: var(--color-accent);
+}
+
+.backLink svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.75;
+}
+
+.backAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 2.5rem;
+  padding-inline: var(--rag-space-5);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  text-decoration: none;
+}
+
+.headerSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding-block-end: var(--rag-space-6);
+  border-block-end: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+/* --- Panneau de mode ------------------------------------------------------- */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+  padding-block: var(--rag-space-6);
+  padding-inline: var(--rag-space-6);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  min-inline-size: 0;
+}
+
+/* Même carte que `Card.module.css`, non partagée (Recherche et Chat gardent
+   leur propre classe) : même défaut de gouttière doublée sous 30rem, même
+   remède — la page fournit déjà 16px, ce panneau cesse d'en rajouter 24
+   pleins par-dessus. C'est ici que la conversation, ses bulles et le
+   compositeur gagnent la largeur qui leur manquait. */
+@media (width <= 30rem) {
+  .panel {
+    padding-inline: var(--rag-space-4);
+  }
+}
+
+/* --- Réglages -------------------------------------------------------------- */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.settingsHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+}
+
+.settingsTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.settingsDescription {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding-block-start: var(--rag-space-5);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.filterHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-2);
+}
+
+.filterLabel {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+}
+
+.filterList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 13rem;
+  overflow-y: auto;
+}
+
+.filterHint,
+.filterEmpty {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+/* --- Formulaire de requête -------------------------------------------------- */
+.queryForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+}
+
+.queryActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- Résultats -------------------------------------------------------------- */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+}
+
+.resultsHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+  padding-block-start: var(--rag-space-4);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.resultsTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.resultsCount {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.scoreLegend {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+  max-inline-size: 68ch;
+}
+
+.passages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+}
+
+/* --- Passage ----------------------------------------------------------------- */
+.passage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+  scroll-margin-block: var(--rag-space-8);
+  transition:
+    border-color var(--rag-duration-base) var(--rag-ease-standard),
+    box-shadow var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+.passageHighlighted {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus-ring) 18%, transparent);
+}
+
+.passageHead {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+}
+
+.rank {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-accent-surface);
+  border: var(--rag-border-thin) solid var(--color-accent-border);
+  color: var(--color-accent);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.passageSource {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.passagePage {
+  flex: none;
+  padding-inline: var(--rag-space-2);
+  padding-block: calc(var(--rag-space-1) / 2);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface-raised);
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.passageScore {
+  flex: none;
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.passageText {
+  font-size: var(--rag-text-sm);
+  line-height: var(--rag-leading-relaxed);
+  color: var(--color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.passageCompact .passageText {
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-normal);
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Déplié : on lève la troncature, et le passage devient défilable plutôt que
+   d'étirer la conversation sur plusieurs écrans. Un fragment peut faire
+   plusieurs milliers de caractères — le rendre entier sans bride repousserait
+   la réponse générée hors du champ de vision, ce que la citation est
+   justement censée éviter. */
+.passageCompact .passageTextExpanded {
+  display: block;
+  -webkit-line-clamp: none;
+  line-clamp: none;
+  overflow-y: auto;
+  max-block-size: 22rem;
+  overscroll-behavior: contain;
+}
+
+.passageToggle {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.passageToggle:hover {
+  color: var(--color-accent-hover);
+}
+
+.passageToggle:focus-visible {
+  outline: var(--rag-border-thick) solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--rag-radius-sm);
+}
+
+/* --- Scores ------------------------------------------------------------------ */
+.scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--rag-space-3);
+  margin: 0;
+  padding-block-start: var(--rag-space-3);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.score {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.scoreLabel {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  letter-spacing: var(--rag-tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.scoreValue {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  margin: 0;
+}
+
+.scoreTrack {
+  flex: 1 1 auto;
+  block-size: 0.3125rem;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-border);
+  overflow: hidden;
+}
+
+.scoreFill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-text-subtle);
+}
+
+.scoreFillAccent {
+  background-color: var(--color-accent-solid);
+}
+
+.scoreNumber {
+  flex: none;
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Chat --------------------------------------------------------------------- */
+.chatHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  flex-wrap: wrap;
+}
+
+.chatHead > :first-child {
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+}
+
+.providerHint {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+  text-align: center;
+  max-inline-size: 60ch;
+  margin-inline: auto;
+}
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+  padding-block: var(--rag-space-2);
+  max-block-size: 34rem;
+  overflow-y: auto;
+}
+
+/* Ce panneau vit dans le flux normal de la page (pas une coquille bornée au
+   viewport) : 34rem (544px) de conversation, sous
+   l'en-tête applicatif et l'en-tête de page, dépasse la hauteur visible de la
+   plupart des téléphones en portrait — le compositeur finit hors champ, à
+   plusieurs écrans de défilement. `dvh` reflète le viewport réellement visible
+   (clavier virtuel déployé compris), une unité fixe ne le pourrait pas. */
+@media (width <= 30rem) {
+  .conversation {
+    max-block-size: min(34rem, 55dvh);
+  }
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+}
+
+.turnUser {
+  align-items: flex-end;
+}
+
+.turnAssistant {
+  align-items: flex-start;
+}
+
+.turnRole {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.bubble {
+  max-inline-size: 46rem;
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border-radius: var(--rag-radius-md);
+  font-size: var(--rag-text-sm);
+  line-height: var(--rag-leading-relaxed);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.turnUser .bubble {
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+  border-end-end-radius: var(--rag-radius-xs);
+}
+
+.turnAssistant .bubble {
+  inline-size: 100%;
+  background-color: var(--color-surface-sunken);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  color: var(--color-text);
+  border-end-start-radius: var(--rag-radius-xs);
+}
+
+/* Curseur de frappe : la seule preuve visuelle que le flux avance encore. */
+.caret {
+  display: inline-block;
+  inline-size: 0.5rem;
+  block-size: 1em;
+  margin-inline-start: 0.15rem;
+  vertical-align: text-bottom;
+  background-color: var(--color-accent);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.pending {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.pendingDots {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.pendingDots i {
+  inline-size: 0.3rem;
+  block-size: 0.3rem;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-accent);
+  animation: bounce 1.1s var(--rag-ease-in-out) infinite;
+}
+
+.pendingDots i:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.pendingDots i:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+@keyframes bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-0.2rem);
+  }
+}
+
+/* --- Sources citées ------------------------------------------------------------ */
+.sources {
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+}
+
+.sourcesHead {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+}
+
+.sourcesTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+/* Hauteur bornée, volontairement : les sources précèdent la réponse dans le
+   flux (elles arrivent avant le premier token), et une dizaine de passages
+   repousseraient sous la ligne de flottaison le texte que l'utilisateur est
+   venu lire. Elles gardent donc leur propre défilement. */
+.sourcesList {
+  display: grid;
+  /* `min(17rem, 100%)` plutôt que `17rem` seul : une fois `.panel` mesuré,
+     un téléphone dont la largeur utile passe sous ~23rem (gouttières de page
+     et de carte déduites) voit cette colonne à largeur minimale fixe
+     dépasser son conteneur et provoquer un défilement horizontal. Le `min()`
+     borne la piste à la largeur disponible, jamais davantage — sans
+     dupliquer la règle dans une media query. */
+  grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr));
+  gap: var(--rag-space-2);
+  max-block-size: 14rem;
+  overflow-y: auto;
+  padding-inline-end: var(--rag-space-1);
+}
+
+/* Renvoi `[n]` : une pastille cliquable, reliée à la carte de même numéro. */
+.citation {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-inline: 0.1rem;
+  padding-inline: 0.25rem;
+  border: var(--rag-border-thin) solid var(--color-accent-border);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-accent-surface);
+  color: var(--color-accent);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  line-height: 1;
+  vertical-align: baseline;
+  cursor: pointer;
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.citation:hover,
+.citation:focus-visible {
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+}
+
+/* --- Composeur ------------------------------------------------------------------ */
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding-block-start: var(--rag-space-4);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.composerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rag-space-2);
+}
+
+/* Limite de saisie atteinte (ADR-053) : poussée à gauche du bouton d'envoi. */
+.inputLimit {
+  margin-inline-end: auto;
+  align-self: center;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+/* --- Erreurs --------------------------------------------------------------------- */
+.errorBlock {
+  inline-size: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-danger-surface);
+}
+
+.errorTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-danger);
+}
+
+.errorText {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret,
+  .pendingDots i {
+    animation: none;
+  }
+}

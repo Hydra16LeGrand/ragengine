@@ -1,0 +1,299 @@
+# RAGEngine — observabilité : Langfuse auto-hébergé (Phase 8, ADR-016).
+#
+# Usage (depuis la racine du dépôt) :
+#   docker compose --env-file .env -f docker/docker-compose.observability.yml up -d
+#
+# PRÉREQUIS — la stack cœur doit tourner : c'est elle qui crée le réseau
+# `ragengine`, consommé ici en `external` (seul `langfuse-web` s'y rattache) :
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d
+#
+# Ce fichier s'utilise SEUL, pas fusionné avec docker-compose.yml : il porte son
+# propre nom de projet (`langfuse`, cohérent avec `ragflow`/`ragengine-gpu`).
+# Brique STRICTEMENT OPTIONNELLE (CONTRIBUTING.md §3.4) : son absence ne fait jamais
+# échouer le cœur (`ObservabilityPort` dégrade en no-op, `factory.py`), et
+# l'arrêter (`docker compose … down`) n'affecte aucun autre fichier compose.
+#
+# ─── Origine du fichier ──────────────────────────────────────────────────────
+# Dérivé du `docker-compose.yml` officiel de `langfuse/langfuse` (tag `v4.0.0`,
+# identique à `main` au 2026-07-29 — cloné et lu via
+# raw.githubusercontent.com, jamais écrit de mémoire, cf. ADR-016). Le
+# self-hosting Langfuse v3/v4 n'est plus un conteneur unique : Postgres
+# (métadonnées), ClickHouse (stockage des traces), Redis (file d'ingestion) et
+# un stockage S3 (MinIO, buckets événements/médias) sont tous requis en plus des
+# deux conteneurs applicatifs `langfuse-web` (UI + endpoint OTLP public) et
+# `langfuse-worker` (ingestion asynchrone vers ClickHouse).
+#
+# Écarts assumés par rapport à l'upstream, chacun motivé :
+#
+# 1. **Isolation totale** (ADR-016) : conteneurs Postgres/ClickHouse/Redis/MinIO
+#    dédiés à Langfuse, jamais partagés avec le Postgres/Redis du cœur RAGEngine
+#    (CONTRIBUTING.md §3.5 : les métadonnées applicatives RAGEngine ne vivent jamais
+#    ailleurs, et réciproquement). Tous sur le réseau privé `langfuse-internal`.
+# 2. **Un seul point de contact avec le cœur** : `langfuse-web` est le SEUL
+#    conteneur de ce fichier à rejoindre le réseau partagé `ragengine` (même
+#    schéma que `ragflow-cpu`, docker-compose.ragflow.yml §2) — c'est lui qui
+#    reçoit les traces OTLP de l'API/des workers. Aucune brique interne
+#    (Postgres/ClickHouse/Redis/MinIO) n'y est jamais rattachée : même risque de
+#    collision DNS que documenté pour RAGFlow si on les y exposait sans besoin.
+# 3. **Seul le port web est publié sur l'hôte**, en boucle locale — même
+#    politique que docker-compose.ragflow.yml (« seuls les ports applicatifs
+#    sortent, jamais les dépendances »). Conséquence acceptée : les URLs de
+#    prévisualisation média Langfuse ne sont pas résolvables depuis un
+#    navigateur sur l'hôte (ADR-016) — sans impact, RAGEngine ne fait que tracer
+#    des spans, jamais d'upload de médias vers Langfuse.
+# 4. **Image MinIO remplacée** : l'upstream utilise `cgr.dev/chainguard/minio`
+#    sans tag public pinnable (image « rolling », non reproductible). Remplacée
+#    par `pgsty/minio:RELEASE.2026-03-25T00-00-00Z`, déjà choisie et vérifiée
+#    dans ce dépôt pour `ragflow-minio` (docker-compose.ragflow.yml).
+# 5. **Provisioning sans étape manuelle** (ADR-016) : `LANGFUSE_INIT_ORG_*`,
+#    `LANGFUSE_INIT_PROJECT_*` et `LANGFUSE_INIT_USER_*` amorcent
+#    organisation/projet/compte au tout premier démarrage — sans eux, Langfuse
+#    exigerait un passage manuel par l'écran d'inscription. Les clés de projet
+#    amorcées (`LANGFUSE_INIT_PROJECT_PUBLIC_KEY`/`_SECRET_KEY`) reprennent
+#    **exactement** `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`, déjà définies
+#    pour l'adaptateur `LangfuseObservability` : une seule paire de clés sert les
+#    deux rôles. Condition : les renseigner dans `.env` AVANT le tout premier
+#    démarrage (volumes vides) — Langfuse ne relit ces variables qu'à la
+#    création initiale du projet, jamais ensuite.
+# 6. **`TELEMETRY_ENABLED=false`** : système souverain (CONTRIBUTING.md §1), aucune
+#    télémétrie du collecteur lui-même vers l'éditeur.
+# 7. **Omis, car non utilisés ici** : export S3 par lot (`LANGFUSE_S3_BATCH_*`),
+#    SMTP (aucun serveur de mail disponible dans ce déploiement), Azure Blob/OCI
+#    (alternatives à MinIO, non pertinentes).
+# 8. `restart: unless-stopped` au lieu de `restart: always` de l'upstream —
+#    cohérent avec tous les autres fichiers compose de ce dépôt.
+
+name: langfuse
+
+# Rotation de logs par défaut — incident réel du 2026-09-11 : `langfuse-clickhouse`,
+# CE fichier, a rempli le disque hôte à 138 Go en écrivant ses logs sans aucune
+# limite (comportement par défaut du driver `json-file` de Docker), bloquant
+# jusqu'aux outils de session tiers qui écrivent dans `/tmp`. Même plafond que
+# les autres fichiers compose de ce dépôt (docker-compose.yml).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${RAGENGINE_LOG_MAX_SIZE:-10m}"
+    max-file: "${RAGENGINE_LOG_MAX_FILE:-3}"
+
+x-langfuse-env: &langfuse-env
+  NEXTAUTH_URL: ${RAGENGINE_LANGFUSE_PUBLIC_URL:-http://localhost:3000}
+  DATABASE_URL: postgresql://${LANGFUSE_STACK_POSTGRES_USER:-langfuse}:${LANGFUSE_STACK_POSTGRES_PASSWORD:-change-me}@langfuse-postgres:5432/${LANGFUSE_STACK_POSTGRES_DB:-langfuse}
+  SALT: ${LANGFUSE_STACK_SALT:-change-me}
+  ENCRYPTION_KEY: ${LANGFUSE_STACK_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+  TELEMETRY_ENABLED: "false"
+  LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+  CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+  CLICKHOUSE_USER: ${LANGFUSE_STACK_CLICKHOUSE_USER:-langfuse}
+  CLICKHOUSE_PASSWORD: ${LANGFUSE_STACK_CLICKHOUSE_PASSWORD:-change-me}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_STACK_MINIO_ROOT_USER:-langfuse}
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_STACK_MINIO_ROOT_PASSWORD:-change-me}
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_STACK_MINIO_ROOT_USER:-langfuse}
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_STACK_MINIO_ROOT_PASSWORD:-change-me}
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://langfuse-minio:9000
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+  REDIS_HOST: langfuse-redis
+  REDIS_PORT: "6379"
+  REDIS_AUTH: ${LANGFUSE_STACK_REDIS_PASSWORD:-change-me}
+  REDIS_TLS_ENABLED: "false"
+  # Vérifié empiriquement (2026-07-29) : le serveur Next.js standalone de
+  # `langfuse-web` lit `HOSTNAME` pour choisir son interface d'écoute, et
+  # Docker peuple TOUJOURS cette variable avec l'identifiant du conteneur —
+  # jamais vide, donc jamais le défaut `0.0.0.0` du serveur. Sans cette
+  # surcharge, l'app n'écoute que sur l'IP attribuée par le réseau connecté en
+  # premier (`172.20.x.x` ici), jamais sur la boucle locale : le healthcheck
+  # `wget http://localhost:3000/...` (exécuté DANS le conteneur) échoue
+  # indéfiniment (`unhealthy` après épuisement des tentatives) alors que
+  # l'application répond normalement en externe (le port publié route vers
+  # cette même IP réseau, jamais vers `localhost`). Même cause probable pour
+  # `langfuse-worker` (son propre serveur écoute aussi sur l'IP réseau plutôt
+  # que `0.0.0.0`, vu dans ses logs) : surchargé ici par cohérence, même sans
+  # healthcheck dessus aujourd'hui.
+  HOSTNAME: "0.0.0.0"
+
+x-langfuse-depends-on: &langfuse-depends-on
+  langfuse-postgres:
+    condition: service_healthy
+  langfuse-minio:
+    condition: service_healthy
+  langfuse-redis:
+    condition: service_healthy
+  langfuse-clickhouse:
+    condition: service_healthy
+
+services:
+  # ─── Métadonnées Langfuse (comptes, organisations, projets, clés d'API) ────
+  # Dédié : sans rapport avec le PostgreSQL du cœur RAGEngine (CONTRIBUTING.md §3.5).
+  langfuse-postgres:
+    image: postgres:17-alpine
+    container_name: langfuse-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${LANGFUSE_STACK_POSTGRES_DB:-langfuse}
+      POSTGRES_USER: ${LANGFUSE_STACK_POSTGRES_USER:-langfuse}
+      POSTGRES_PASSWORD: ${LANGFUSE_STACK_POSTGRES_PASSWORD:-change-me}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LANGFUSE_STACK_POSTGRES_USER:-langfuse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [langfuse-internal]
+
+  # ─── Stockage des traces/observations (colonne, haut débit d'écriture) ─────
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server:25.12
+    container_name: langfuse-clickhouse
+    restart: unless-stopped
+    logging: *default-logging
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${LANGFUSE_STACK_CLICKHOUSE_USER:-langfuse}
+      CLICKHOUSE_PASSWORD: ${LANGFUSE_STACK_CLICKHOUSE_PASSWORD:-change-me}
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks: [langfuse-internal]
+
+  # ─── Stockage objet S3 : buckets événements + médias (requis, non optionnel
+  # côté Langfuse — écart 4 de l'en-tête). ────────────────────────────────────
+  langfuse-minio:
+    image: pgsty/minio:RELEASE.2026-03-25T00-00-00Z
+    container_name: langfuse-minio
+    restart: unless-stopped
+    logging: *default-logging
+    # Précrée le répertoire `langfuse` avant de démarrer : sur un backend
+    # filesystem MinIO, un répertoire à la racine des données EST un bucket dès
+    # le premier démarrage — évite un conteneur d'amorçage `mc mb` séparé.
+    entrypoint: ["sh", "-c"]
+    command:
+      - "mkdir -p /data/langfuse && minio server --console-address ':9001' /data"
+    environment:
+      MINIO_ROOT_USER: ${LANGFUSE_STACK_MINIO_ROOT_USER:-langfuse}
+      MINIO_ROOT_PASSWORD: ${LANGFUSE_STACK_MINIO_ROOT_PASSWORD:-change-me}
+      TZ: UTC
+    volumes:
+      - langfuse_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks: [langfuse-internal]
+
+  # ─── File d'ingestion interne (langfuse-web → langfuse-worker) ─────────────
+  langfuse-redis:
+    image: redis:7-alpine
+    container_name: langfuse-redis
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["redis-server", "--requirepass", "${LANGFUSE_STACK_REDIS_PASSWORD:-change-me}", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - langfuse_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${LANGFUSE_STACK_REDIS_PASSWORD:-change-me}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [langfuse-internal]
+
+  # ─── Ingestion asynchrone : consomme la file, écrit dans ClickHouse ────────
+  # Pas de port publié sur l'hôte : rien en dehors du réseau interne ne
+  # l'appelle jamais directement (l'API/les workers RAGEngine parlent
+  # exclusivement à `langfuse-web`, écart 2 de l'en-tête).
+  langfuse-worker:
+    image: docker.io/langfuse/langfuse-worker:3
+    container_name: langfuse-worker
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on: *langfuse-depends-on
+    environment:
+      <<: *langfuse-env
+    networks: [langfuse-internal]
+
+  # ─── UI + endpoint public OTLP (`/api/public/otel/v1/traces`) ──────────────
+  # SEUL conteneur de ce fichier rattaché à `ragengine` (écart 2) : c'est lui
+  # que l'API/les workers RAGEngine résolvent par nom une fois `LANGFUSE_HOST`
+  # positionné à `http://langfuse-web:3000` dans leur environnement.
+  langfuse-web:
+    image: docker.io/langfuse/langfuse:3
+    container_name: langfuse-web
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on: *langfuse-depends-on
+    environment:
+      <<: *langfuse-env
+      NEXTAUTH_SECRET: ${LANGFUSE_STACK_NEXTAUTH_SECRET:-change-me}
+      # Amorçage sans étape manuelle (écart 5 de l'en-tête).
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_STACK_INIT_ORG_ID:-ragengine}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_STACK_INIT_ORG_NAME:-RAGEngine}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_STACK_INIT_PROJECT_ID:-ragengine}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_STACK_INIT_PROJECT_NAME:-RAGEngine}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_STACK_INIT_USER_EMAIL:-admin@ragengine.local}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_STACK_INIT_USER_NAME:-RAGEngine Admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_STACK_INIT_USER_PASSWORD:-change-me}
+    healthcheck:
+      # Disponibilité réelle (Postgres/ClickHouse/Redis/MinIO tous joignables),
+      # pas simple vivacité — endpoint public documenté par le chart Helm
+      # officiel (`langfuse-k8s`), absent du compose amont.
+      #
+      # `127.0.0.1` explicite, pas `localhost` : vérifié empiriquement, le
+      # `wget` embarqué dans cette image résout `localhost` en IPv6 (`::1`)
+      # en premier et n'essaie jamais le repli IPv4 sur refus de connexion
+      # (contrairement au GNU wget) — or le serveur n'écoute qu'en IPv4
+      # (`HOSTNAME=0.0.0.0` ci-dessus), donc `::1` échoue toujours, à tort.
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/public/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      langfuse-internal: {}
+      ragengine: {}
+    ports:
+      - "127.0.0.1:${RAGENGINE_LANGFUSE_WEB_HOST_PORT:-3000}:3000"
+
+networks:
+  langfuse-internal:
+    name: langfuse-internal
+    driver: bridge
+  # Créé par la stack cœur (PRÉREQUIS ci-dessus), jamais par ce fichier.
+  ragengine:
+    name: ragengine
+    external: true
+
+volumes:
+  langfuse_postgres_data:
+    name: langfuse_postgres_data
+  langfuse_clickhouse_data:
+    name: langfuse_clickhouse_data
+  langfuse_clickhouse_logs:
+    name: langfuse_clickhouse_logs
+  langfuse_minio_data:
+    name: langfuse_minio_data
+  langfuse_redis_data:
+    name: langfuse_redis_data

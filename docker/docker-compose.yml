@@ -1,0 +1,297 @@
+# RAGEngine — stack cœur : api, worker Celery, redis, postgres.
+#
+# Usage (depuis la racine du dépôt) :
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d
+#
+# Le fichier .env de la racine est la source de vérité de la configuration
+# (cf. .env.example). Les hôtes intra-réseau (postgres, redis) sont imposés ici
+# et ne dépendent pas du .env : à l'intérieur du réseau Docker, ce sont les noms
+# de services qui font foi.
+#
+# Les briques optionnelles vivent dans des fichiers séparés qui rejoignent le
+# même réseau `ragengine` : docker-compose.ragflow.yml (moteur, Phase 4),
+# docker-compose.gpu.yml (inférence GPU, Phase 3),
+# docker-compose.observability.yml (Langfuse, Phase 8).
+
+name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+
+# Rotation de logs par défaut (incident réel, 2026-09-11) : un conteneur sans
+# limite explicite sur le driver `json-file` (défaut Docker) peut écrire ses
+# logs sans borne — `langfuse-clickhouse` a rempli le disque en boucle jusqu'à
+# 138 Go, bloquant tout le reste de l'hôte (y compris les outils de la session
+# qui écrivent dans `/tmp`). `max-size`/`max-file` plafonnent l'empreinte de
+# CHAQUE conteneur à 30 Mio par défaut (10 Mio × 3 fichiers) — resserré ou
+# élargi par `.env` sans toucher ce fichier.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${RAGENGINE_LOG_MAX_SIZE:-10m}"
+    max-file: "${RAGENGINE_LOG_MAX_FILE:-3}"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-postgres
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ragengine}
+      POSTGRES_USER: ${POSTGRES_USER:-ragengine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragengine}
+      # Accélère l'init et évite les surprises de collation sur volume neuf.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ragengine} -d ${POSTGRES_DB:-ragengine}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [ragengine]
+    # Exposé en local uniquement (introspection psql, migrations Alembic depuis
+    # l'hôte). Le port publié est volontairement distinct de POSTGRES_PORT — ce
+    # dernier est le port intra-réseau vu par l'API — afin de ne pas entrer en
+    # conflit avec un PostgreSQL installé nativement sur la machine.
+    ports:
+      - "127.0.0.1:${RAGENGINE_POSTGRES_HOST_PORT:-5433}:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-redis
+    restart: unless-stopped
+    logging: *default-logging
+    # appendonly : le broker Celery survit à un redémarrage sans perdre les jobs en file.
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks: [ragengine]
+    # Même principe que postgres : port hôte distinct du port intra-réseau.
+    ports:
+      - "127.0.0.1:${RAGENGINE_REDIS_HOST_PORT:-6380}:6379"
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ragengine/api:${RAGENGINE_IMAGE_TAG:-dev}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-api
+    restart: unless-stopped
+    logging: *default-logging
+    env_file:
+      # Fichier d'environnement RÉEL de CET environnement (le plan de déploiement interne,
+      # Phase B) — jamais littéralement "../.env" : ce chemin doit varier avec
+      # RAGENGINE_ENV_FILE (".env"/".env.prod"), sans quoi prod relirait par
+      # erreur les secrets/la config de dev au runtime malgré des noms de
+      # projet distincts. Défaut ".env" inchangé pour un usage sans .env/
+      # .env.prod (le ".env" unique d'aujourd'hui reste valide).
+      - path: ../${RAGENGINE_ENV_FILE:-.env}
+        required: false
+    environment:
+      # Hôtes intra-réseau — imposés, jamais hérités du .env.
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RAGENGINE_STORAGE_ROOT_DIR: /data/documents
+    volumes:
+      # Fichiers d'origine téléversés (ADR-014). Écrits ici à l'upload, relus par
+      # worker-default au precheck et au chunking : le même volume est monté au
+      # même chemin sur les deux services, et sur eux seuls.
+      - documents_data:/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request,sys;
+          sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health',
+          timeout=3).status == 200 else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [ragengine]
+    # Bind sur la boucle locale par défaut : l'authentification (comptes,
+    # RBAC, ADR-005) est bien en place, mais l'exposition publique passe par
+    # Traefik + le tunnel Cloudflare (le plan de déploiement interne), pas par un
+    # élargissement direct de ce bind. Passer RAGENGINE_API_BIND_ADDRESS à
+    # 0.0.0.0 reste une décision explicite, réservée au réseau local de confiance.
+    # Ce port n'est JAMAIS une entrée publique (ADR-052) : il contourne les
+    # middlewares de Traefik (en-têtes, bornes de corps), et tout ce qui y entre
+    # depuis l'hôte arrive sous l'IP de la passerelle Docker, dont uvicorn
+    # n'honore pas `X-Forwarded-For` (backend/app/core/trusted_proxies.py).
+    ports:
+      - "${RAGENGINE_API_BIND_ADDRESS:-127.0.0.1}:${RAGENGINE_API_PORT:-8000}:8000"
+    # Découvert par Traefik via son provider FICHIER (docker-compose.traefik.yml,
+    # docker/traefik/dynamic.yml — adressé par `api:8000`, le nom de SERVICE
+    # Compose, stable quel que soit RAGENGINE_PROJECT_NAME, pas par label : cf.
+    # l'en-tête de docker-compose.traefik.yml pour pourquoi le provider Docker/
+    # labels a été abandonné). Aucun label à poser ici.
+    develop:
+      watch:
+        - action: sync+restart
+          path: ../backend/app
+          target: /app/app
+        - action: rebuild
+          path: ../backend/pyproject.toml
+
+  # Worker CPU : orchestration des jobs, I/O, polling RAGFlow (CONTRIBUTING.md §2).
+  # Le worker GPU (queue `gpu`, concurrency=1) vit dans docker-compose.gpu.yml.
+  #
+  # Activé à partir de la Phase 3, quand `app.workers.celery_app` existe :
+  #   docker compose --profile workers -f docker/docker-compose.yml up -d
+  worker-default:
+    profiles: [workers]
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ragengine/api:${RAGENGINE_IMAGE_TAG:-dev}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-worker-default
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app
+      - worker
+      - --queues=default
+      - --concurrency=${CELERY_DEFAULT_CONCURRENCY:-4}
+      - --loglevel=INFO
+    env_file:
+      # Fichier d'environnement RÉEL de CET environnement (le plan de déploiement interne,
+      # Phase B) — jamais littéralement "../.env" : ce chemin doit varier avec
+      # RAGENGINE_ENV_FILE (".env"/".env.prod"), sans quoi prod relirait par
+      # erreur les secrets/la config de dev au runtime malgré des noms de
+      # projet distincts. Défaut ".env" inchangé pour un usage sans .env/
+      # .env.prod (le ".env" unique d'aujourd'hui reste valide).
+      - path: ../${RAGENGINE_ENV_FILE:-.env}
+        required: false
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RAGENGINE_STORAGE_ROOT_DIR: /data/documents
+    volumes:
+      # Lecture seule du point de vue métier (le worker ne fait que relire les
+      # octets déposés par l'API), mais monté en écriture : une future étape de
+      # reprise pourrait avoir à y écrire, et un montage `:ro` ferait échouer le
+      # conteneur bien après le déploiement plutôt qu'à sa conception.
+      - documents_data:/data/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # CMD-SHELL requis : $HOSTNAME doit être développé par le shell du conteneur.
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks: [ragengine]
+
+  # Scheduler Celery Beat : publie les tâches périodiques de `beat_schedule`
+  # (`app.workers.celery_app`) — aujourd'hui, la routine d'évaluation programmée
+  # (Phase 12 Étape 4). **Un seul exemplaire par déploiement** : deux `beat`
+  # publieraient chaque run en double. Ne consomme aucune file lui-même — c'est
+  # `worker-default` qui exécute les tâches qu'il publie, d'où `depends_on` sur
+  # lui plutôt que l'inverse.
+  worker-beat:
+    profiles: [workers]
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ragengine/api:${RAGENGINE_IMAGE_TAG:-dev}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-worker-beat
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app
+      - beat
+      - --loglevel=INFO
+      - --schedule=/var/lib/celery-beat/celerybeat-schedule
+    env_file:
+      # Fichier d'environnement RÉEL de CET environnement (le plan de déploiement interne,
+      # Phase B) — jamais littéralement "../.env" : ce chemin doit varier avec
+      # RAGENGINE_ENV_FILE (".env"/".env.prod"), sans quoi prod relirait par
+      # erreur les secrets/la config de dev au runtime malgré des noms de
+      # projet distincts. Défaut ".env" inchangé pour un usage sans .env/
+      # .env.prod (le ".env" unique d'aujourd'hui reste valide).
+      - path: ../${RAGENGINE_ENV_FILE:-.env}
+        required: false
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      # Persiste l'horodatage du dernier déclenchement (fichier `shelve` du
+      # scheduler par défaut) : un redémarrage du conteneur ne republie pas
+      # immédiatement une routine déjà déclenchée dans le même cycle.
+      - celery_beat_data:/var/lib/celery-beat
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      worker-default:
+        condition: service_started
+    healthcheck:
+      # `beat` ne sert aucun HTTP (contrairement au `HEALTHCHECK` de l'image,
+      # écrit pour `api` — hérité sans override ici, il échoue à chaque coup :
+      # `Connection refused`, conteneur signalé `unhealthy` en permanence
+      # malgré un scheduler qui tourne normalement, trouvé en campagne E2E).
+      # `beat` n'a pas non plus de commande `inspect ping` (réservée aux
+      # workers, cf. `worker-default`/`worker-gpu` ci-dessus/`docker-compose.
+      # gpu.yml`) : sans dépendance supplémentaire dans l'image, le seul
+      # signal disponible est la présence du process attendu en PID 1.
+      test: ["CMD-SHELL", "grep -q 'celery.*beat' /proc/1/cmdline"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks: [ragengine]
+
+volumes:
+  postgres_data:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}_postgres_data
+  redis_data:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}_redis_data
+  # Fichiers d'origine (ADR-014). Aucun service RAGFlow ne le monte : le moteur
+  # reçoit son propre exemplaire par téléversement HTTP, RAGEngine ne partage
+  # jamais son stockage brut avec un tiers.
+  documents_data:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}_documents_data
+  celery_beat_data:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}_celery_beat_data
+
+networks:
+  # Nom paramétré par environnement (RAGENGINE_PROJECT_NAME) pour que dev et
+  # prod ne partagent jamais ce réseau : deux services nommés `postgres` sur un
+  # même réseau Docker s'y disputeraient le même alias DNS, avec un risque réel
+  # qu'un conteneur résolve le mauvais homonyme (le plan de déploiement interne, Phase B).
+  # Par défaut ("ragengine", inchangé), c'est exactement le réseau déjà utilisé
+  # aujourd'hui — `docker-compose.gpu.yml` le référence en `external: true` sous
+  # ce même nom : ne renommer ce défaut sous aucun prétexte, ça couperait le
+  # worker GPU existant de son réseau.
+  ragengine:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+    driver: bridge

@@ -1,0 +1,90 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rag-space-2);
+  border: var(--rag-border-thin) solid transparent;
+  border-radius: var(--rag-radius-sm);
+  font-family: var(--rag-font-display);
+  font-weight: var(--rag-weight-medium);
+  letter-spacing: var(--rag-tracking-tight);
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    border-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard),
+    box-shadow var(--rag-duration-fast) var(--rag-ease-standard),
+    transform var(--rag-duration-instant) var(--rag-ease-standard);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* --- Tailles -------------------------------------------------------------- */
+.sm {
+  block-size: 2rem;
+  padding-inline: var(--rag-space-3);
+  font-size: var(--rag-text-sm);
+}
+
+.md {
+  block-size: 2.5rem;
+  padding-inline: var(--rag-space-5);
+  font-size: var(--rag-text-sm);
+}
+
+/* --- Variantes ------------------------------------------------------------ */
+.primary {
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+  box-shadow: var(--shadow-sm);
+}
+
+.primary:hover:not(:disabled) {
+  background-color: var(--color-accent-solid-hover);
+}
+
+.secondary {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.ghost {
+  background-color: transparent;
+  color: var(--color-text-muted);
+}
+
+.ghost:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+/* Action destructrice : contour rouge au repos, plein au survol — l'intention
+   se lit avant le clic, sans crier dans la page au repos. */
+.danger {
+  background-color: var(--color-surface);
+  border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+  color: var(--color-danger);
+}
+
+.danger:hover:not(:disabled) {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  color: var(--rag-neutral-0);
+}

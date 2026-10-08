@@ -1,0 +1,21 @@
+# Dépendances
+node_modules/
+
+# Build
+dist/
+dist-ssr/
+*.local
+
+# Caches d'outillage
+.eslintcache
+*.tsbuildinfo
+.vite/
+
+# Environnement local (le .env.example du dépôt fait foi)
+.env
+.env.*
+!.env.example
+
+# OS / éditeurs
+.DS_Store
+*.swp

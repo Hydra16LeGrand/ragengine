@@ -1,0 +1,183 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-8);
+}
+
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+/* Cible de l'ancre `#kb-upload-panel` (état vide de `DocumentsPanel`) : sans
+   cette marge de défilement, l'en-tête applicatif — `position: sticky`,
+   `AppLayout.module.css` — recouvrirait le haut du panneau visé. */
+.uploadAnchor {
+  scroll-margin-block-start: calc(var(--rag-header-height) + var(--rag-space-4));
+}
+
+/* --- Fil d'Ariane / retour ------------------------------------------------ */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-1);
+  color: var(--color-text-subtle);
+  font-size: var(--rag-text-xs);
+  text-decoration: none;
+  transition: color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.backLink:hover {
+  color: var(--color-accent);
+}
+
+.backLink svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  stroke-width: 1.75;
+}
+
+.breadcrumbRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  flex-wrap: wrap;
+}
+
+.siblingNav {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-4);
+}
+
+.siblingLink,
+.siblingLinkDisabled {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-1);
+  font-size: var(--rag-text-xs);
+  text-decoration: none;
+}
+
+.siblingLink {
+  color: var(--color-text-subtle);
+  transition: color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.siblingLink:hover {
+  color: var(--color-accent);
+}
+
+.siblingLinkDisabled {
+  color: var(--color-text-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.siblingLink svg,
+.siblingLinkDisabled svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  stroke-width: 1.75;
+}
+
+.primaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rag-space-2);
+  block-size: 2.5rem;
+  padding-inline: var(--rag-space-5);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-accent-solid);
+  color: var(--color-accent-contrast);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.primaryLink:hover {
+  background-color: var(--color-accent-solid-hover);
+  color: var(--color-accent-contrast);
+}
+
+/* --- Métadonnées d'en-tête ------------------------------------------------ */
+.slug {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  padding: 0.15rem var(--rag-space-2);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+/* --- Liste de définitions ------------------------------------------------- */
+.definitions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--rag-space-5) var(--rag-space-6);
+  margin-block-start: var(--rag-space-5);
+}
+
+.definition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.definition dt {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.definition dd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  align-items: flex-start;
+  margin: 0;
+  font-size: var(--rag-text-sm);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* L'identifiant technique reste visible sous le libellé lisible : rien
+   n'est masqué à l'opérateur qui doit le recopier. */
+.identifier {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+.pendingValue {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+  font-style: italic;
+}
+
+/* --- Squelettes ----------------------------------------------------------- */
+.headerSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  padding-block-end: var(--rag-space-6);
+  border-block-end: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--rag-space-4);
+  margin-block-start: var(--rag-space-5);
+}

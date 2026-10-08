@@ -1,0 +1,169 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rag-space-5) var(--rag-space-6);
+  margin-block-start: var(--rag-space-5);
+  /* Les champs d'une même rangée s'accrochent en haut : une aide plus longue
+     d'un côté n'étire pas le champ voisin. */
+  align-items: start;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 48rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- Documents déposés avant la création ----------------------------------- */
+.documentsDropzone {
+  margin-block-start: var(--rag-space-5);
+}
+
+.stagedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  margin: var(--rag-space-5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.documentsPendingHint {
+  margin: var(--rag-space-3) 0 0;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.lockNote {
+  grid-column: 1 / -1;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+  padding-inline-start: var(--rag-space-3);
+  border-inline-start: var(--rag-border-thick) solid var(--color-border);
+}
+
+.errorTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-danger);
+}
+
+.errorDetail {
+  margin-block-start: var(--rag-space-1);
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- Section avancée ------------------------------------------------------ */
+.advanced {
+  margin: calc(-1 * var(--rag-space-6));
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-6);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--rag-radius-lg);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.summaryText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.summaryTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-md);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-tight);
+  color: var(--color-text);
+}
+
+.summaryHint {
+  font-size: var(--rag-text-sm);
+  color: var(--color-text-muted);
+}
+
+.chevron {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  color: var(--color-text-subtle);
+  stroke-width: 1.5;
+  transition: rotate var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+.advanced[open] .chevron {
+  rotate: 180deg;
+}
+
+.advancedBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+  padding-inline: var(--rag-space-6);
+  padding-block-end: var(--rag-space-6);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+  padding-block-start: var(--rag-space-5);
+}
+
+/* `.advanced` sort des marges de sa `Card` (padding plein, 24px) pour que sa
+   bordure de survol aille d'un bord à l'autre — sous 30rem, `Card.module.css`
+   réduit son rembourrage horizontal à 16px : sans cet accord, `.advanced`
+   débordait de 8px du bord de la carte. `.summary` et `.advancedBody`
+   reprennent la même valeur pour rester alignés sur ce nouveau bord. */
+@media (width <= 30rem) {
+  .advanced {
+    margin-inline: calc(-1 * var(--rag-space-4));
+  }
+
+  .summary,
+  .advancedBody {
+    padding-inline: var(--rag-space-4);
+  }
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+}
+
+.code {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-xs);
+}
+
+/* --- Actions -------------------------------------------------------------- */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+}

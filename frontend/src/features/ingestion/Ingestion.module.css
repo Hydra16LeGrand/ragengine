@@ -1,0 +1,809 @@
+/* =============================================================================
+   Parcours d'ingestion (Schéma A) — dépôt, file, aiguillage, progression.
+   Feuille partagée par les écrans de la feature : ils forment une seule
+   colonne visuelle et doivent respirer au même rythme.
+   ========================================================================== */
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-6);
+  margin-block-start: var(--rag-space-5);
+}
+
+/* --- File d'attente -------------------------------------------------------- */
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+}
+
+.queueHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+}
+
+.queueTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-2xs);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-caps);
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+}
+
+.queueCount {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-subtle);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface);
+  overflow: hidden;
+}
+
+.itemHead {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-3) var(--rag-space-4);
+}
+
+.itemIcon {
+  flex: none;
+  display: inline-flex;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface-sunken);
+}
+
+.itemIcon svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke: var(--color-text-subtle);
+  stroke-width: 1.4;
+}
+
+.itemIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.itemName {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemSize {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.itemRemove {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: none;
+  border-radius: var(--rag-radius-xs);
+  background-color: transparent;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.itemRemove:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.itemRemove svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.6;
+}
+
+.itemBody {
+  padding: var(--rag-space-4);
+  padding-block-start: 0;
+}
+
+.itemReplacesNote {
+  margin: 0;
+  padding: 0 var(--rag-space-4) var(--rag-space-3);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+/* Fichier reconnu identique à un document déjà présent (ADR-014) : un constat,
+   pas une alerte — rien n'a échoué. D'où le liseré neutre plutôt qu'un bloc
+   coloré, et une lisibilité supérieure à `.itemReplacesNote` : cette note
+   explique une absence dans la liste, il faut qu'elle soit lue. */
+.itemDuplicateNote {
+  margin: 0 var(--rag-space-4) var(--rag-space-3);
+  padding-inline-start: var(--rag-space-3);
+  border-inline-start: var(--rag-border-thick) solid var(--color-border-strong);
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-relaxed);
+  color: var(--color-text-muted);
+}
+
+/* --- Mise en attente --------------------------------------------------- */
+.stagingActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- Actions groupées : accepter ou refuser les suggestions -------------- */
+.bulkAccept {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-accent-border);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-accent-surface);
+}
+
+.bulkAcceptText {
+  margin: 0;
+  min-inline-size: 14rem;
+  flex: 1 1 14rem;
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Le refus est en retrait visuel (`ghost`) de l'acceptation : les deux sont
+   offerts, mais la proposition reste le chemin recommandé (ADR-031). */
+.bulkAcceptActions {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  flex: none;
+  /* Sur un téléphone, les deux boutons ne tiennent jamais côte à côte à côté
+     du texte (`.bulkAcceptText` réclame déjà 14rem) : le second débordait,
+     coupé au bord de l'écran — constaté en conditions réelles, 2026-09-07. */
+  flex-wrap: wrap;
+}
+
+/* `Button` fixe `white-space: nowrap` par défaut (bon défaut pour la
+   plupart des boutons) — ici, les deux libellés sont des phrases complètes
+   qui débordent encore une fois seules sur leur propre rangée à cette
+   largeur ; ce contexte-ci les laisse revenir à la ligne plutôt que déborder. */
+.bulkAcceptActions button {
+  white-space: normal;
+  text-align: start;
+}
+
+/* --- Confirmation de remplacement --------------------------------------- */
+.replaceList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.replaceListItem {
+  font-size: var(--rag-text-sm);
+  color: var(--color-text);
+  padding: var(--rag-space-2) var(--rag-space-3);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface-sunken);
+}
+
+/* --- Suivi du job ---------------------------------------------------------- */
+.tracker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface-sunken);
+}
+
+.trackerSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+}
+
+.completed {
+  font-size: var(--rag-text-xs);
+  color: var(--color-success);
+}
+
+.cancelRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- Garde-fou qualité (ADR-024) --------------------------------------------- */
+.qualityWarning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-warning-surface);
+}
+
+.qualityWarningTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-warning);
+}
+
+.qualityWarningIntro {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.qualityWarningMessage {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* Le « et maintenant ? » du garde-fou : même corps que le constat, teinte
+   moins appuyée — un conseil se lit après le fait, pas à sa place. */
+.qualityWarningAdvice {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.qualityWarningMetrics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qualityWarningMetric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.qualityWarningMetricValue {
+  font-family: var(--rag-font-mono);
+  color: var(--color-text-muted);
+}
+
+/* --- Échec ----------------------------------------------------------------- */
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-danger-surface);
+}
+
+.failureHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-3);
+}
+
+.failureTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-danger);
+}
+
+.failureText {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Constat traduit d'une cause reconnue : c'est lui qu'on lit en premier, le
+   message brut du moteur passant sous le repli juste en dessous. */
+.causeTitle {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* Repli du message brut. Toujours présent, jamais supprimé : c'est la seule
+   trace exploitable pour un diagnostic (page fautive, charge utile du
+   fournisseur). */
+.rawCause {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.rawCauseSummary {
+  cursor: pointer;
+  width: fit-content;
+  padding: 0.1rem var(--rag-space-2);
+  margin-inline-start: calc(-1 * var(--rag-space-2));
+  border-radius: var(--rag-radius-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.rawCauseSummary:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+.rawCauseSummary:focus-visible {
+  outline: var(--rag-border-thick) solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.rawCauseMessage {
+  margin-block-start: var(--rag-space-2);
+  padding: var(--rag-space-2) var(--rag-space-3);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface);
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  line-height: var(--rag-leading-relaxed);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.failureMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  flex-wrap: wrap;
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.failureCode {
+  font-family: var(--rag-font-mono);
+  font-size: var(--rag-text-2xs);
+  padding: 0.1rem var(--rag-space-2);
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.failureActions {
+  display: flex;
+  gap: var(--rag-space-2);
+  margin-block-start: var(--rag-space-1);
+}
+
+/* --- Aiguillage : rapport --------------------------------------------------- */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+}
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+}
+
+.reportHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  flex-wrap: wrap;
+}
+
+.reportTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.reportDescription {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  max-inline-size: 62ch;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--rag-space-3) var(--rag-space-5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.metric {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rag-space-3);
+  min-inline-size: 0;
+}
+
+.metricIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: var(--rag-radius-xs);
+  background-color: var(--color-surface);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.metricIcon svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+  fill: none;
+  stroke-width: 1.4;
+  stroke: var(--color-text-subtle);
+}
+
+.metricIcon.accent {
+  background-color: var(--color-accent-surface);
+  border-color: var(--color-accent-border);
+}
+
+.metricIcon.accent svg {
+  stroke: var(--color-accent);
+}
+
+.metricIcon.warning {
+  background-color: var(--color-warning-surface);
+  border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
+}
+
+.metricIcon.warning svg {
+  stroke: var(--color-warning);
+}
+
+.metricText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+
+.metricTitle {
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text);
+}
+
+.metricDetail {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rag-space-1);
+}
+
+/* Repli des indices détaillés (point de lisibilité : une carte par document,
+   plusieurs documents en file — six indices dépliés par défaut prennent trop
+   de place). Même patron visuel que `.advanced` plus bas, en plus discret :
+   pas de carte à bordure, juste un bouton texte. */
+.reportDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-3);
+}
+
+.reportDetailsSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  width: fit-content;
+  padding: 0.1rem var(--rag-space-2);
+  margin-inline-start: calc(-1 * var(--rag-space-2));
+  border-radius: var(--rag-radius-xs);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text-muted);
+}
+
+.reportDetailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.reportDetailsSummary:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface-hover);
+}
+
+.reportDetailsSummary:focus-visible {
+  outline: var(--rag-border-thick) solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.reportDetailsChevron {
+  flex: none;
+  inline-size: 1rem;
+  block-size: 1rem;
+  stroke-width: 1.5;
+  fill: none;
+  stroke: currentcolor;
+  transition: rotate var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+.reportDetails[open] .reportDetailsChevron {
+  rotate: 180deg;
+}
+
+/* --- Aiguillage : rapport dégradé -------------------------------------------- */
+.degraded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-warning-surface);
+}
+
+.degradedTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-warning);
+}
+
+.degradedText {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- Aiguillage : décision ---------------------------------------------------- */
+.decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+  padding-block-start: var(--rag-space-5);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.decisionHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+}
+
+.decisionTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.decisionDescription {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+  max-inline-size: 62ch;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rag-space-3);
+  padding: var(--rag-space-4);
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface);
+}
+
+.option > :first-child {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.suggestion {
+  flex: none;
+  margin-block-start: 0.1rem;
+}
+
+/* En dessous de ~360px de largeur utile pour la carte, le libellé le plus
+   long (« Optimiser pour les tableaux financiers ») se réduit à un mot par
+   ligne et l'étiquette de suggestion, restée à sa place sur la même rangée,
+   finit par recouvrir le texte. La rangée passe donc en colonne : la case et
+   son étiquette d'abord, la suggestion juste en dessous, jamais superposées. */
+@media (max-width: 26rem) {
+  .option {
+    flex-direction: column;
+  }
+
+  .suggestion {
+    margin-block-start: 0;
+    margin-inline-start: calc(1.125rem + var(--rag-space-3));
+  }
+}
+
+/* --- Paramètres avancés, repliés par défaut --------------------------------
+   Même patron que `KnowledgeBaseForm.module.css` : `<details>`/`<summary>`
+   natif, chevron dessiné à la main, marqueur du navigateur masqué. Le style
+   est repris plutôt que partagé — les deux écrans n'ont ni le même conteneur
+   (une carte là-bas, un bloc de décision ici) ni les mêmes marges. */
+.advanced {
+  border: var(--rag-border-thin) solid var(--color-border-subtle);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-surface);
+}
+
+.advancedSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-4);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--rag-radius-sm);
+}
+
+.advancedSummary::-webkit-details-marker {
+  display: none;
+}
+
+.advancedSummary:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.advancedSummaryText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-1);
+  min-inline-size: 0;
+}
+
+.advancedTitle {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-semibold);
+  color: var(--color-text);
+}
+
+.advancedHint {
+  font-size: var(--rag-text-xs);
+  color: var(--color-text-muted);
+}
+
+.advancedChevron {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  color: var(--color-text-subtle);
+  stroke-width: 1.5;
+  fill: none;
+  stroke: currentcolor;
+  transition: rotate var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+.advanced[open] .advancedChevron {
+  rotate: 180deg;
+}
+
+.advancedBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-4);
+  padding: var(--rag-space-4);
+  padding-block-start: var(--rag-space-4);
+  border-block-start: var(--rag-border-thin) solid var(--color-border-subtle);
+}
+
+.advancedUnavailable {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+}
+
+.decisionActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--rag-space-3);
+}
+
+/* Pousse le bouton d'annulation à l'extrémité opposée du bouton de
+   validation — même rangée, mais jamais l'un contre l'autre au point
+   d'inviter un clic malheureux. `margin-inline-end: auto` plutôt que
+   `justify-content: space-between` sur le parent : le bouton de validation
+   reste collé à droite même quand l'annulation n'est pas rendue (état non
+   annulable). Le `ghost` (poids visuel nettement moindre que le bouton
+   primaire) et le libellé, à eux seuls, disent déjà qu'il s'agit d'y
+   renoncer — la confirmation (`Dialog`, `JobTracker`) reste le dernier
+   garde-fou. */
+.cancelAction {
+  margin-inline-end: auto;
+}
+
+/* En dessous de ~360px, les deux boutons plus la marge automatique ne
+   tiennent plus sur une rangée : `cancelAction` se fait pousser hors de
+   l'écran par la marge auto plutôt que de se réduire (mesuré : `left: -45px`
+   au viewport 375px). Empilés en colonne pleine largeur, aucun des deux
+   boutons ne peut plus déborder ni se retrouver écrasé contre l'autre. */
+@media (max-width: 26rem) {
+  .decisionActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cancelAction {
+    margin-inline-end: 0;
+  }
+}
+
+.error {
+  font-size: var(--rag-text-xs);
+  color: var(--color-danger);
+}
+
+/* --- Utilitaire ------------------------------------------------------------- */
+.visuallyHidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

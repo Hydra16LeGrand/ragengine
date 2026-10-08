@@ -1,0 +1,244 @@
+# RAGEngine — service d'inférence GPU (Phase 3, ADR-002 / ADR-011 / ADR-051).
+#
+# Usage (depuis la racine du dépôt) :
+#   docker compose --env-file .env -f docker/docker-compose.gpu.yml up -d
+#
+# PRÉREQUIS 1 — la stack cœur doit tourner : c'est elle qui crée le réseau
+# `ragengine`, consommé ici en `external` :
+#   docker compose --env-file .env -f docker/docker-compose.yml up -d
+#
+# PRÉREQUIS 2 — le **NVIDIA Container Toolkit** doit être installé sur l'hôte.
+# Déclarer un runtime `nvidia` dans /etc/docker/daemon.json ne suffit pas : sans
+# le paquet, le démon connaît le nom du runtime mais pas son binaire, et tout
+# démarrage échoue sur
+#   Error response from daemon: could not select device driver "nvidia" with capabilities: [[gpu]]
+# Installation (Debian/Ubuntu, dépôt NVIDIA déjà configuré) :
+#   sudo apt-get install -y nvidia-container-toolkit
+#   sudo nvidia-ctk runtime configure --runtime=docker
+#   sudo systemctl restart docker
+# Vérification : `docker run --rm --gpus all ubuntu nvidia-smi`.
+#
+# Ce fichier s'utilise SEUL, pas fusionné avec docker-compose.yml (`-f a -f b`
+# écraserait le nom de projet du second fichier passé). Il partage néanmoins
+# délibérément le même nom de projet Docker Compose que le cœur (`name:`
+# ci-dessous, `${RAGENGINE_PROJECT_NAME:-ragengine}` — identique dans les deux
+# fichiers, PAS `ragengine-gpu` comme un commentaire plus ancien de ce fichier
+# l'affirmait à tort) : c'est ce qui permet à `docker compose -p ragengine ps`
+# de lister les conteneurs des deux fichiers ensemble.
+#
+# **CONSÉQUENCE DANGEREUSE, vécue en conditions réelles (2026-09-12)** : parce
+# que le nom de projet est partagé, `--remove-orphans` sur **une seule
+# invocation** de ce fichier considère « orphelins » tous les conteneurs du
+# projet qui ne sont pas définis DANS CE fichier précis — y compris `api`,
+# `postgres`, `redis`, `worker-default`, `worker-beat`, qui vivent dans
+# `docker-compose.yml`. Un `docker compose -f docker-compose.gpu.yml up -d
+# --remove-orphans` a réellement supprimé ces cinq conteneurs du cœur (pas
+# leurs volumes, retrouvés intacts) lors de la migration TEI. **Ne jamais
+# passer `--remove-orphans` sur une invocation qui ne cite pas tous les
+# fichiers compose du projet.**
+#
+# ─── ADR-051 : Xinference → Text Embeddings Inference (TEI) ──────────────────
+# Remplace le service `inference` unique (Xinference, ADR-011) par DEUX
+# conteneurs TEI mono-modèle — image officielle `ghcr.io/huggingface/
+# text-embeddings-inference`, pas d'image dérivée (contrairement à Xinference,
+# qui nécessitait `inference.Dockerfile` pour ajouter `sentence-transformers`).
+#
+# POURQUOI : mesuré en Phase 10 (ADR-011), Xinference sérialise strictement
+# toute requête concurrente d'embedding/rerank derrière un `asyncio.Lock` — 4
+# requêtes simultanées ≈ même temps que 4 en séquence, sans aucun batching. Ça
+# plafonne le débit d'ingestion dès qu'un déploiement a plusieurs documents en
+# vol. TEI fait du batching dynamique natif pour ce type de modèle
+# (`--max-batch-tokens`) : plusieurs requêtes concurrentes partagent un même
+# passage GPU au lieu de faire la queue.
+#
+# POURQUOI DEUX CONTENEURS : TEI sert **un seul modèle par instance**
+# (`--model-id`, obligatoire), contrairement à Xinference qui en hébergeait
+# plusieurs sous un superviseur commun. BGE-M3 et bge-reranker-v2-m3 vivent donc
+# chacun dans leur propre conteneur, chacun sur son propre port hôte.
+#
+# BUDGET VRAM — mécanisme différent de Xinference, pas juste un remplacement :
+#   1. Sous Xinference, le plafond venait de la sérialisation stricte (aucun
+#      batching possible) + `replica: 1` par modèle.
+#   2. Sous TEI, chaque conteneur ne charge qu'**un seul** modèle (pas de notion
+#      de réplique à régler : un process, un modèle, un poids fixe en VRAM) et
+#      borne l'activation mémoire du batching dynamique par `--max-batch-tokens`
+#      (16384 par défaut, non modifié ici — valeur conservatrice de l'amont,
+#      pensée pour fonctionner sans réglage sur du matériel grand public).
+#      `--max-client-batch-size` est relevé à 64 (défaut TEI : 32) pour ne pas
+#      rejeter en 413 les lots de `RerankerCapabilities.max_documents` (64,
+#      `app/providers/rerankers/local.py`) ni de `BGE_M3_CAPABILITIES.
+#      max_batch_size` (64, `app/providers/embeddings/local.py`).
+#   Empreinte mesurée (RTX 4080 Laptop, 12 282 Mio), les deux conteneurs sains,
+#   poids chargés, avant toute requête : BGE-M3 1 356 Mio + bge-reranker-v2-m3
+#   1 388 Mio = **2 744 Mio (2,68 Gio)**, contre 4 768 Mio sous Xinference
+#   (−42 %). Largement sous le plafond de 10 Go de CONTRIBUTING.md §2. Détail et
+#   méthode : `docs/adr/051-tei-remplace-xinference-inference-gpu.md`.
+
+name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+
+# Rotation de logs par défaut — cf. docker-compose.yml pour l'incident qui l'a
+# motivée (2026-09-11, `langfuse-clickhouse`, 138 Go). Même plafond partout.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "${RAGENGINE_LOG_MAX_SIZE:-10m}"
+    max-file: "${RAGENGINE_LOG_MAX_FILE:-3}"
+
+services:
+  # BGE-M3 (embedding), servi par TEI — consommé par la façade via
+  # `EmbeddingPort` (`EMBEDDING_INFERENCE_BASE_URL`) et par RAGFlow directement
+  # (fournisseur `HuggingFace`, `scripts/bootstrap_ragflow.py`).
+  inference-embedding:
+    # Image officielle, prête à l'emploi : contrairement à Xinference, TEI n'a
+    # besoin d'aucune dépendance ajoutée pour servir un modèle d'embedding.
+    image: ghcr.io/huggingface/text-embeddings-inference:89-1.9
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-inference-embedding
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --model-id
+      - ${RAGENGINE_INFERENCE_EMBEDDING_MODEL_ID:-BAAI/bge-m3}
+      # Défaut TEI : 32. Relevé pour couvrir en un seul appel le plus grand lot
+      # que RAGEngine ou RAGFlow puisse envoyer (64, cf. en-tête de fichier).
+      - --max-client-batch-size
+      - "64"
+    volumes:
+      # `HUGGINGFACE_HUB_CACHE=/data` est fixé dans l'image officielle
+      # (`Dockerfile-cuda`) : sans ce volume, les poids (~2,2 Gio) seraient
+      # retéléchargés à chaque recréation du conteneur.
+      - inference_embedding_data:/data
+    # Accès GPU — forme Compose v2 (`deploy.resources.reservations.devices`),
+    # préférée à `runtime: nvidia` : déclarative, et honorée par `docker compose
+    # up` sans dépendre du runtime par défaut du démon.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # Healthcheck de DISPONIBILITÉ RÉELLE — mais, contrairement à Xinference, le
+    # endpoint natif `/health` de TEI suffit ici sans sonde applicative : un
+    # conteneur TEI charge son unique modèle *avant* d'ouvrir le port HTTP (pas
+    # de registre de modèles dynamique comme Xinference), donc le service ne
+    # répond `200` sur `/health` qu'une fois BGE-M3 effectivement chargé et
+    # servable (`router/src/http/server.rs::health`, vérifié dans la source TEI).
+    # `curl` est présent dans l'image officielle (`Dockerfile-cuda`, base
+    # `nvidia/cuda:...-runtime-ubuntu24.04` + `apt-get install curl`).
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      # Généreux : sur un cache froid, les poids (~2,2 Gio) sont téléchargés
+      # depuis Hugging Face avant que le modèle ne soit chargé et servable.
+      start_period: 900s
+    networks: [ragengine]
+    # Même politique que la stack cœur : boucle locale uniquement. Aucune
+    # authentification (TEI n'expose pas d'option d'API key configurée ici) ;
+    # l'exposer sur le LAN livrerait le GPU à qui le demande.
+    ports:
+      - "127.0.0.1:${RAGENGINE_INFERENCE_EMBEDDING_HOST_PORT:-9997}:80"
+
+  # bge-reranker-v2-m3, servi par TEI — même politique que ci-dessus, dans son
+  # propre conteneur (TEI : un modèle par instance).
+  inference-reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:89-1.9
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-inference-reranker
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - --model-id
+      - ${RAGENGINE_INFERENCE_RERANKER_MODEL_ID:-BAAI/bge-reranker-v2-m3}
+      - --max-client-batch-size
+      - "64"
+    volumes:
+      - inference_reranker_data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:80/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+    networks: [ragengine]
+    ports:
+      - "127.0.0.1:${RAGENGINE_INFERENCE_RERANKER_HOST_PORT:-9998}:80"
+
+  # Worker Celery de la queue `gpu` — l'autre moitié de la garantie anti-OOM
+  # (CONTRIBUTING.md §2, ADR-002). `--concurrency=1 --prefetch-multiplier=1` sérialise
+  # les tâches déclenchées par RAGEngine ; le budget VRAM des deux conteneurs
+  # d'inférence eux-mêmes est décrit en en-tête de fichier (ADR-051).
+  #
+  # Image `ragengine/api` (pas les images TEI) : `app.workers.*` vit dans le
+  # paquet backend, pas dans les images du service d'inférence.
+  worker-gpu:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: ragengine/api:${RAGENGINE_IMAGE_TAG:-dev}
+    container_name: ${RAGENGINE_PROJECT_NAME:-ragengine}-worker-gpu
+    restart: unless-stopped
+    logging: *default-logging
+    command:
+      - celery
+      - -A
+      - app.workers.celery_app
+      - worker
+      - --queues=gpu
+      - --concurrency=1
+      - --prefetch-multiplier=1
+      - --loglevel=INFO
+    env_file:
+      # Fichier d'environnement RÉEL de CET environnement (le plan de déploiement interne,
+      # Phase B) — jamais littéralement "../.env" : ce chemin doit varier avec
+      # RAGENGINE_ENV_FILE (".env"/".env.prod"), sans quoi prod relirait par
+      # erreur les secrets/la config de dev au runtime malgré des noms de
+      # projet distincts. Défaut ".env" inchangé pour un usage sans .env/
+      # .env.prod (le ".env" unique d'aujourd'hui reste valide).
+      - path: ../${RAGENGINE_ENV_FILE:-.env}
+        required: false
+    environment:
+      # `postgres`/`redis` vivent dans docker-compose.yml (PRÉREQUIS 1 ci-dessus) :
+      # ce fichier ne peut pas les référencer en `depends_on` (hors de son propre
+      # graphe), mais le réseau partagé `ragengine` résout leurs noms DNS tel quel.
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    depends_on:
+      inference-embedding:
+        condition: service_healthy
+      inference-reranker:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks: [ragengine]
+
+networks:
+  ragengine:
+    name: ${RAGENGINE_PROJECT_NAME:-ragengine}
+    external: true
+
+# Noms FIXES, délibérément PAS paramétrés par RAGENGINE_PROJECT_NAME (ADR-057) :
+# ce cache ne contient que des poids de modèles publics re-téléchargeables
+# (BGE-M3, bge-reranker-v2-m3, ~2,2 Gio), pas des données produit. Le partager
+# entre dev et prod évite un re-téléchargement inutile — contrairement au
+# réseau et aux `container_name` ci-dessus, qui isolent bien les deux
+# environnements l'un de l'autre.
+volumes:
+  inference_embedding_data:
+    name: ragengine_inference_embedding_data
+  inference_reranker_data:
+    name: ragengine_inference_reranker_data

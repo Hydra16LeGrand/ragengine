@@ -1,0 +1,194 @@
+.list {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  min-inline-size: 0;
+}
+
+/* --- Rail : pastille + trait de liaison ----------------------------------- */
+.track {
+  display: flex;
+  align-items: center;
+  gap: var(--rag-space-2);
+  inline-size: 100%;
+}
+
+.marker {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.375rem;
+  block-size: 1.375rem;
+  border: var(--rag-border-thick) solid var(--color-border-strong);
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-surface);
+  transition:
+    border-color var(--rag-duration-base) var(--rag-ease-standard),
+    background-color var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+.marker svg {
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  fill: none;
+  stroke-width: 2;
+}
+
+.line {
+  flex: 1 1 auto;
+  block-size: var(--rag-border-thick);
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-border);
+  transition: background-color var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+/* --- Textes --------------------------------------------------------------- */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-inline-end: var(--rag-space-3);
+  min-inline-size: 0;
+}
+
+.label {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-xs);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text-subtle);
+  transition: color var(--rag-duration-base) var(--rag-ease-standard);
+}
+
+.description {
+  font-size: var(--rag-text-2xs);
+  color: var(--color-text-subtle);
+  overflow-wrap: anywhere;
+}
+
+/* --- États ---------------------------------------------------------------- */
+.done .marker {
+  border-color: var(--color-accent-solid);
+  background-color: var(--color-accent-solid);
+}
+
+.done .marker svg {
+  stroke: var(--color-accent-contrast);
+}
+
+.done .line {
+  background-color: var(--color-accent-solid);
+}
+
+.done .label {
+  color: var(--color-text-muted);
+}
+
+.current .marker {
+  border-color: var(--color-accent);
+  background-color: var(--color-surface);
+}
+
+.current .label {
+  color: var(--color-text);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.current .description {
+  color: var(--color-accent);
+}
+
+/* Cœur battant : l'étape en cours est vivante, sans sablier ni pourcentage
+   inventé — c'est le seul mouvement de la progression. */
+.pulse {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: var(--rag-radius-full);
+  background-color: var(--color-accent);
+  animation: pulse 1.6s var(--rag-ease-in-out) infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.failed .marker {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger);
+}
+
+.failed .marker svg {
+  stroke: var(--rag-neutral-0);
+}
+
+.failed .label {
+  color: var(--color-danger);
+  font-weight: var(--rag-weight-semibold);
+}
+
+.failed .description {
+  color: var(--color-danger);
+}
+
+.upcoming .marker {
+  border-color: var(--color-border);
+}
+
+/* --- Adaptation étroite ---------------------------------------------------- */
+/* Sous 34rem, les libellés se chevaucheraient : la progression bascule à la
+   verticale, le trait de liaison devient le rail latéral. */
+@media (max-width: 34rem) {
+  .list {
+    flex-direction: column;
+    gap: var(--rag-space-1);
+  }
+
+  .step {
+    flex: none;
+    flex-direction: row;
+    gap: var(--rag-space-3);
+    inline-size: 100%;
+  }
+
+  .track {
+    flex-direction: column;
+    inline-size: auto;
+    align-self: stretch;
+  }
+
+  .line {
+    inline-size: var(--rag-border-thick);
+    block-size: auto;
+    min-block-size: var(--rag-space-4);
+    flex: 1 1 auto;
+  }
+
+  .body {
+    padding-block-end: var(--rag-space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}

@@ -1,0 +1,113 @@
+.page {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-block: var(--rag-space-8) var(--rag-space-16);
+}
+
+.panel {
+  inline-size: 100%;
+  max-inline-size: 25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-6);
+}
+
+/* --- Marque --------------------------------------------------------------- */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rag-space-3);
+  align-self: center;
+}
+
+.brandMark {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  color: var(--color-accent);
+  stroke-width: 1.75;
+}
+
+.brandName {
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-md);
+  font-weight: var(--rag-weight-semibold);
+  letter-spacing: var(--rag-tracking-tight);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-2);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--rag-text-xl);
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--rag-text-sm);
+}
+
+/* --- Bascule connexion / inscription -------------------------------------- */
+.switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--rag-space-1);
+  padding: var(--rag-space-1);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-md);
+  background-color: var(--color-surface-sunken);
+}
+
+.switchOption {
+  padding-block: var(--rag-space-2);
+  border-radius: var(--rag-radius-sm);
+  font-family: var(--rag-font-display);
+  font-size: var(--rag-text-sm);
+  font-weight: var(--rag-weight-medium);
+  color: var(--color-text-muted);
+  transition:
+    background-color var(--rag-duration-fast) var(--rag-ease-standard),
+    color var(--rag-duration-fast) var(--rag-ease-standard),
+    box-shadow var(--rag-duration-fast) var(--rag-ease-standard);
+}
+
+.switchOption:hover {
+  color: var(--color-text);
+}
+
+.switchOptionActive {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- Formulaire ----------------------------------------------------------- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rag-space-5);
+  padding: var(--rag-space-6);
+  border: var(--rag-border-thin) solid var(--color-border);
+  border-radius: var(--rag-radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.banner {
+  padding: var(--rag-space-3) var(--rag-space-4);
+  border: var(--rag-border-thin) solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  border-radius: var(--rag-radius-sm);
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger);
+  font-size: var(--rag-text-xs);
+  line-height: var(--rag-leading-snug);
+}
+
+.submit {
+  inline-size: 100%;
+  margin-block-start: var(--rag-space-1);
+}
