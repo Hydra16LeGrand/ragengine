@@ -46,7 +46,7 @@ RUN npm run build
 # : écoute en 8080 et tourne déjà en non-root, même politique que
 # `backend/Dockerfile` (utilisateur applicatif dédié, jamais root).
 # --------------------------------------------------------------------------- #
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 
 COPY --from=builder /src/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
