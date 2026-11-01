@@ -9,7 +9,7 @@
 # --------------------------------------------------------------------------- #
 # Étape 1 — construction de l'environnement Python (dépendances + paquet `app`)
 # --------------------------------------------------------------------------- #
-FROM python:3.12-slim AS builder
+FROM python:3.15-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /usr/local/bin/uv
 
@@ -32,7 +32,7 @@ RUN uv pip install --no-cache .
 # --------------------------------------------------------------------------- #
 # Étape 2 — image d'exécution
 # --------------------------------------------------------------------------- #
-FROM python:3.12-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
